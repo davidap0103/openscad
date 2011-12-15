@@ -37,6 +37,7 @@ extern void register_builtin_cgaladv();
 extern void register_builtin_dxf_linear_extrude();
 extern void register_builtin_dxf_rotate_extrude();
 extern void initialize_builtin_dxf_dim();
+extern void initialize_builtin_stl_dim();
 
 /*!
 	Registers all builtin functions.
@@ -46,6 +47,7 @@ void Builtins::initialize()
 {
 	register_builtin_functions();
 	initialize_builtin_dxf_dim();
+	initialize_builtin_stl_dim();
 
 	init("group", new AbstractModule());
 

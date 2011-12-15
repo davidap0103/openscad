@@ -148,6 +148,7 @@ HEADERS += src/renderer.h \
            src/csgterm.h \
            src/dxfdata.h \
            src/dxfdim.h \
+		   src/stldim.h \
            src/dxftess.h \
            src/export.h \
            src/expression.h \
@@ -219,6 +220,7 @@ SOURCES += src/openscad.cc \
            src/dxftess-glu.cc \
            src/dxftess-cgal.cc \
            src/dxfdim.cc \
+		   src/stldim.cc \
            src/linearextrude.cc \
            src/rotateextrude.cc \
            src/highlighter.cc \

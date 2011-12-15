@@ -37,6 +37,7 @@
 #include "builtin.h"
 #include "progress.h"
 #include "dxfdim.h"
+#include "stldim.h"
 #ifdef ENABLE_OPENCSG
 #include "CSGTermEvaluator.h"
 #include "OpenCSGRenderer.h"
@@ -1504,6 +1505,7 @@ void MainWindow::actionFlushCaches()
 #endif
 	dxf_dim_cache.clear();
 	dxf_cross_cache.clear();
+	stl_dim_cache.clear();
 	Module::libs_cache.clear();
 }
 
