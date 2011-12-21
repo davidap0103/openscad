@@ -28,30 +28,125 @@
 #include "openscad.h" // extern int parser_error_pos;
 
 #ifdef _QCODE_EDIT_
-Highlighter::Highlighter(QDocument *parent)
+Highlighter::Highlighter(QDocument *parent, Mode mode)
 #else
-Highlighter::Highlighter(QTextDocument *parent)
+Highlighter::Highlighter(QTextDocument *parent, Mode mode)
 #endif
-		: QSyntaxHighlighter(parent)
+: QSyntaxHighlighter(parent), mode_(mode)
 {
+  Operators << "<=" << ">=" << "==" << "!=" << "&&" << "||"
+						<< "+" << "-" << "*" << "/" << "%" << "!" << "#" << ";";
+  KeyWords << "echo" << "for" << "intersection_for" << "if" << "else" << "assign" 
+           << "module" << "function" << "$children" << "child"
+					 << "$fn" << "$fa" << "$fs" << "PI" // Lump special variables and constants in here
+					 << "$vpt" << "$vpr" << "$t"
+           << "union" << "intersection" << "difference" << "render" //Lump CSG in here
+           << "minkowski" << "glide" << "subdiv" << "hull";
+  Primitives3D << "cube" << "cylinder" << "sphere" << "polyhedron";
+  Primitives2D << "square" << "polygon" << "circle";
+  Transforms << "scale" << "translate" << "rotate" << "multmatrix" << "color" << "mirror"
+             << "linear_extrude" << "rotate_extrude"; // Lump extrudes in here.
+  Imports << "include" << "use" << "import_stl" << "import_dxf" << "import_off"
+					<< "import" << "dxf_dim" << "dxf_cross";
+	Functions << "abs" << "sign" << "rands" << "min" << "max" << "sin" << "cos" << "asin"
+						<< "acos" << "tan" << "atan" << "atan2" << "round" << "ceil" << "floor"
+						<< "pow" << "sqrt" << "exp" << "len" << "log" << "ln" << "str" << "lookup"
+						<< "version" << "version_num";
+
+  //this->OperatorStyle.setForeground
+  KeyWordStyle.setForeground(Qt::darkGreen);
+  TransformStyle.setForeground(Qt::darkGreen);
+  PrimitiveStyle3D.setForeground(Qt::darkBlue);
+  PrimitiveStyle2D.setForeground(Qt::blue);
+  ImportStyle.setForeground(Qt::darkYellow);
+  FunctionStyle.setForeground(Qt::darkGreen);
+  QuoteStyle.setForeground(Qt::darkMagenta);
+  CommentStyle.setForeground(Qt::darkCyan);
+  ErrorStyle.setForeground(Qt::red);
 }
 
 void Highlighter::highlightBlock(const QString &text)
 {
-	int n = previousBlockState();
-	if (n < 0)
-		n = 0;
-	int k = n + text.size() + 1;
-	setCurrentBlockState(k);
-	if (parser_error_pos >= n && parser_error_pos < k) {
-		QTextCharFormat style;
-		style.setBackground(Qt::red);
-		setFormat(0, text.size(), style);
-#if 0
-		style.setBackground(Qt::black);
-		style.setForeground(Qt::white);
-		setFormat(parser_error_pos - n, 1, style);
-#endif
+	if (this->mode_ == ERROR_MODE) {
+		// Errors
+		// A bit confusing. parser_error_pos is the number of charcters 
+		// into the document that the error is. The position is kept track of
+		// and if its on this line, the whole line is set to ErrorStyle.
+		int n = previousBlockState();
+		if (n < 0)
+			n = 0;
+		int k = n + text.size() + 1;
+		setCurrentBlockState(k);
+		if (parser_error_pos >= n && parser_error_pos < k) {
+			setFormat(0, text.size(), ErrorStyle);
+		}
+	} else {
+		State state = (State) previousBlockState();
+
+		//Key words and Primitives
+		QStringList::iterator it;
+		for (it = KeyWords.begin(); it != KeyWords.end(); ++it) {
+			for (int i = 0; i < text.count(*it); ++i) {
+				setFormat(text.indexOf(*it), it->size(), KeyWordStyle);
+			}
+		}
+		for (it = Primitives3D.begin(); it != Primitives3D.end(); ++it) {
+			for (int i = 0; i < text.count(*it); ++i) {
+				setFormat(text.indexOf(*it), it->size(), PrimitiveStyle3D);
+			}
+		}
+		for (it = Primitives2D.begin(); it != Primitives2D.end(); ++it) {
+			for (int i = 0; i < text.count(*it); ++i) {
+				setFormat(text.indexOf(*it), it->size(), PrimitiveStyle2D);
+			}
+		}
+		for (it = Transforms.begin(); it != Transforms.end(); ++it) {
+			for (int i = 0; i < text.count(*it); ++i) {
+				setFormat(text.indexOf(*it), it->size(), TransformStyle);
+			}
+		}
+		for (it = Imports.begin(); it != Imports.end(); ++it) {
+			for (int i = 0; i < text.count(*it); ++i) {
+				setFormat(text.indexOf(*it), it->size(), ImportStyle);
+			}
+		}
+		for (it = Functions.begin(); it != Functions.end(); ++it) {
+			for (int i = 0; i < text.count(*it); ++i) {
+				setFormat(text.indexOf(*it), it->size(), FunctionStyle);
+			}
+		}
+
+
+		// Quoting and Comments.
+		for (int n = 0; n < text.size(); ++n) {
+			if (state == NORMAL) {
+				if (text[n] == '"') {
+					state = QUOTE;
+					setFormat(n,1,QuoteStyle);
+				} else if (text[n] == '/') {
+					if (text[n+1] == '/') {
+						setFormat(n,text.size(),CommentStyle);
+						break;
+					} else if (text[n+1] == '*') {
+						setFormat(n++,2,CommentStyle);
+						state = COMMENT;
+					}
+				}
+			} else if (state == QUOTE) {
+				setFormat(n,1,QuoteStyle);
+				if (text[n] == '"' && text[n-1] != '\\')
+					state = NORMAL;
+			} else if (state == COMMENT) {
+				setFormat(n,1,CommentStyle);
+				if (text[n] == '*' && text[n+1] == '/') {
+					setFormat(++n,1,CommentStyle);
+					state = NORMAL;
+				}
+			}
+		}
+
+		//Save State
+		setCurrentBlockState((int) state);
 	}
 }
 
