@@ -48,18 +48,18 @@ void CSGTermEvaluator::applyToChildren(const AbstractNode &node, CSGTermEvaluato
 			t1 = t2;
 		} else if (t2 && t1) {
 			if (op == CSGT_UNION) {
-				t1.reset(new CSGTerm(CSGTerm::TYPE_UNION, t1, t2));
+				t1 = CSGTerm::createCSGTerm(CSGTerm::TYPE_UNION, t1, t2);
 			} else if (op == CSGT_DIFFERENCE) {
-				t1.reset(new CSGTerm(CSGTerm::TYPE_DIFFERENCE, t1, t2));
+				t1 = CSGTerm::createCSGTerm(CSGTerm::TYPE_DIFFERENCE, t1, t2);
 			} else if (op == CSGT_INTERSECTION) {
-				t1.reset(new CSGTerm(CSGTerm::TYPE_INTERSECTION, t1, t2));
+				t1 = CSGTerm::createCSGTerm(CSGTerm::TYPE_INTERSECTION, t1, t2);
 			}
 		}
 	}
-	if (t1 && node.modinst->tag_highlight) {
+	if (t1 && node.modinst->isHighlight()) {
 		this->highlights.push_back(t1);
 	}
-	if (t1 && node.modinst->tag_background) {
+	if (t1 && node.modinst->isBackground()) {
 		this->background.push_back(t1);
 		t1.reset(); // don't propagate background tagged nodes
 	}
@@ -94,10 +94,10 @@ static shared_ptr<CSGTerm> evaluate_csg_term_from_ps(const State &state,
 	std::stringstream stream;
 	stream << node.name() << node.index();
 	shared_ptr<CSGTerm> t(new CSGTerm(ps, state.matrix(), state.color(), stream.str()));
-	if (modinst->tag_highlight) {
+	if (modinst->isHighlight()) {
 		highlights.push_back(t);
 	}
-	if (modinst->tag_background) {
+	if (modinst->isBackground()) {
 		background.push_back(t);
 		t.reset();
 	}
