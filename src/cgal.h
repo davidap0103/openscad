@@ -50,7 +50,10 @@ typedef CGAL::Polygon_with_holes_2<CGAL_ExactKernel2> CGAL_Poly2h;
 
  //typedef CGAL::Cartesian<NT> CGAL_Kernel3;
 typedef CGAL::Exact_predicates_exact_constructions_kernel CGAL_Kernel3;
+<<<<<<< HEAD
 typedef CGAL::Exact_predicates_exact_constructions_kernel::FT NT3;
+=======
+>>>>>>> Try the CGAL EPEC kernel for 3D operations
 typedef CGAL::Nef_polyhedron_3<CGAL_Kernel3> CGAL_Nef_polyhedron3;
 typedef CGAL_Nef_polyhedron3::Aff_transformation_3 CGAL_Aff_transformation;
 
