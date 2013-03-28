@@ -6,6 +6,9 @@
 #include "dxfdata.h"
 #include "dxftess.h"
 
+#include <CGAL/corefinement_operations.h>
+typedef CGAL::Polyhedron_corefinement<CGAL_Polyhedron> Corefinement;
+
 CGAL_Nef_polyhedron::CGAL_Nef_polyhedron(CGAL_Nef_polyhedron2 *p)
 {
 	if (p) {
@@ -32,21 +35,66 @@ CGAL_Nef_polyhedron::CGAL_Nef_polyhedron(CGAL_Nef_polyhedron3 *p)
 CGAL_Nef_polyhedron& CGAL_Nef_polyhedron::operator+=(const CGAL_Nef_polyhedron &other)
 {
 	if (this->dim == 2) (*this->p2) += (*other.p2);
-	else if (this->dim == 3) (*this->p3) += (*other.p3);
+	else if (this->dim == 3) {
+#ifdef CGAL_FAST
+		CGAL_Polyhedron A;
+		this->p3->convert_to_Polyhedron(A);
+		CGAL_Polyhedron B;
+		other.p3->convert_to_Polyhedron(B);
+
+		std::vector<std::pair <CGAL_Polyhedron*,int> > result;
+		CGAL::Emptyset_iterator polyline_output;
+		Corefinement coref;
+		coref(A, B, polyline_output, std::back_inserter(result), Corefinement::Join_tag);
+		*this->p3 = CGAL_Nef_polyhedron3(*result[0].first);
+#else
+		(*this->p3) += (*other.p3);
+#endif
+	}
 	return *this;
 }
 
 CGAL_Nef_polyhedron& CGAL_Nef_polyhedron::operator*=(const CGAL_Nef_polyhedron &other)
 {
 	if (this->dim == 2) (*this->p2) *= (*other.p2);
-	else if (this->dim == 3) (*this->p3) *= (*other.p3);
+	else if (this->dim == 3) {
+#ifdef CGAL_FAST
+		CGAL_Polyhedron A;
+		this->p3->convert_to_Polyhedron(A);
+		CGAL_Polyhedron B;
+		other.p3->convert_to_Polyhedron(B);
+
+		std::vector<std::pair <CGAL_Polyhedron*,int> > result;
+		CGAL::Emptyset_iterator polyline_output;
+		Corefinement coref;
+		coref(A, B, polyline_output, std::back_inserter(result), Corefinement::Intersection_tag);
+		*this->p3 = CGAL_Nef_polyhedron3(*result[0].first);
+#else
+		(*this->p3) *= (*other.p3);
+#endif
+	}
 	return *this;
 }
 
 CGAL_Nef_polyhedron& CGAL_Nef_polyhedron::operator-=(const CGAL_Nef_polyhedron &other)
 {
 	if (this->dim == 2) (*this->p2) -= (*other.p2);
-	else if (this->dim == 3) (*this->p3) -= (*other.p3);
+	else if (this->dim == 3) {
+#ifdef CGAL_FAST
+		CGAL_Polyhedron A;
+		this->p3->convert_to_Polyhedron(A);
+		CGAL_Polyhedron B;
+		other.p3->convert_to_Polyhedron(B);
+
+		std::vector<std::pair <CGAL_Polyhedron*,int> > result;
+		CGAL::Emptyset_iterator polyline_output;
+		Corefinement coref;
+		coref(A, B, polyline_output, std::back_inserter(result), Corefinement::P_minus_Q_tag);
+		*this->p3 = CGAL_Nef_polyhedron3(*result[0].first);
+#else
+		(*this->p3) -= (*other.p3);
+#endif
+	}
 	return *this;
 }
 
