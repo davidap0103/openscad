@@ -62,7 +62,7 @@ CGAL_Nef_polyhedron& CGAL_Nef_polyhedron::operator+=(const CGAL_Nef_polyhedron &
 		CGAL::Emptyset_iterator polyline_output;
 		Corefinement coref;
 		coref(A, B, polyline_output, std::back_inserter(result), Corefinement::Join_tag);
-		*this->p3 = CGAL_Nef_polyhedron3(*result[0].first);
+		if (result.size() > 0) *this->p3 = CGAL_Nef_polyhedron3(*result[0].first);
 #else
 		(*this->p3) += (*other.p3);
 #endif
@@ -100,7 +100,7 @@ CGAL_Nef_polyhedron& CGAL_Nef_polyhedron::operator*=(const CGAL_Nef_polyhedron &
 		CGAL::Emptyset_iterator polyline_output;
 		Corefinement coref;
 		coref(A, B, polyline_output, std::back_inserter(result), Corefinement::Intersection_tag);
-		*this->p3 = CGAL_Nef_polyhedron3(*result[0].first);
+		*this->p3 = (result.size() > 0) ? CGAL_Nef_polyhedron3(*result[0].first) : CGAL_Nef_polyhedron3();
 #else
 		(*this->p3) *= (*other.p3);
 #endif
@@ -138,7 +138,7 @@ CGAL_Nef_polyhedron& CGAL_Nef_polyhedron::operator-=(const CGAL_Nef_polyhedron &
 		CGAL::Emptyset_iterator polyline_output;
 		Corefinement coref;
 		coref(A, B, polyline_output, std::back_inserter(result), Corefinement::P_minus_Q_tag);
-		*this->p3 = CGAL_Nef_polyhedron3(*result[0].first);
+		if (result.size() > 0) *this->p3 = CGAL_Nef_polyhedron3(*result[0].first);
 #else
 		(*this->p3) -= (*other.p3);
 #endif
