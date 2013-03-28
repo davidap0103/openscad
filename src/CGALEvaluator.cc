@@ -202,8 +202,8 @@ CGAL_Nef_polyhedron CGALEvaluator::applyResize(const CgaladvNode &node)
 	if ( N.dim == 2 ) {
 		CGAL_Iso_rectangle_2e bbox = bounding_box( *N.p2 );
 		CGAL_Point_2e min2(bbox.min()), max2(bbox.max());
-		CGAL_Point_3 min3(CGAL::to_double(min2.x()), CGAL::to_double(min2.y()), 0),
-			max3(CGAL::to_double(max2.x()), CGAL::to_double(max2.y()), 0);
+		CGAL_Point_3 min3(CGAL::to_double(min2.x()), CGAL::to_double(min2.y()), 0);
+		CGAL_Point_3 max3(CGAL::to_double(max2.x()), CGAL::to_double(max2.y()), 0);
 		bb = CGAL_Iso_cuboid_3( min3, max3 );
 	}
 	else {
