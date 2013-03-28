@@ -42,6 +42,22 @@ CGAL_Nef_polyhedron& CGAL_Nef_polyhedron::operator+=(const CGAL_Nef_polyhedron &
 		CGAL_Polyhedron B;
 		other.p3->convert_to_Polyhedron(B);
 
+		//check validity of polyhedra
+		if (!A.is_pure_triangle() || !B.is_pure_triangle()){
+			PRINT("Inputs polyhedra must be triangulated.");
+			return *this;
+		}
+
+		if (!A.size_of_vertices() || !B.size_of_vertices()){
+			PRINT("Inputs polyhedra must not be empty.");
+			return *this;
+		}
+
+		if (!A.is_valid() || !B.is_valid()){
+			PRINT("Inputs polyhedra must be valid.");
+			return *this;
+		}
+
 		std::vector<std::pair <CGAL_Polyhedron*,int> > result;
 		CGAL::Emptyset_iterator polyline_output;
 		Corefinement coref;
@@ -64,6 +80,22 @@ CGAL_Nef_polyhedron& CGAL_Nef_polyhedron::operator*=(const CGAL_Nef_polyhedron &
 		CGAL_Polyhedron B;
 		other.p3->convert_to_Polyhedron(B);
 
+		//check validity of polyhedra
+		if (!A.is_pure_triangle() || !B.is_pure_triangle()){
+			PRINT("Inputs polyhedra must be triangulated.");
+			return *this;
+		}
+
+		if (!A.size_of_vertices() || !B.size_of_vertices()){
+			PRINT("Inputs polyhedra must not be empty.");
+			return *this;
+		}
+
+		if (!A.is_valid() || !B.is_valid()){
+			PRINT("Inputs polyhedra must be valid.");
+			return *this;
+		}
+
 		std::vector<std::pair <CGAL_Polyhedron*,int> > result;
 		CGAL::Emptyset_iterator polyline_output;
 		Corefinement coref;
@@ -85,6 +117,22 @@ CGAL_Nef_polyhedron& CGAL_Nef_polyhedron::operator-=(const CGAL_Nef_polyhedron &
 		this->p3->convert_to_Polyhedron(A);
 		CGAL_Polyhedron B;
 		other.p3->convert_to_Polyhedron(B);
+
+		//check validity of polyhedra
+		if (!A.is_pure_triangle() || !B.is_pure_triangle()){
+			PRINT("Inputs polyhedra must be triangulated.");
+			return *this;
+		}
+
+		if (!A.size_of_vertices() || !B.size_of_vertices()){
+			PRINT("Inputs polyhedra must not be empty.");
+			return *this;
+		}
+
+		if (!A.is_valid() || !B.is_valid()){
+			PRINT("Inputs polyhedra must be valid.");
+			return *this;
+		}
 
 		std::vector<std::pair <CGAL_Polyhedron*,int> > result;
 		CGAL::Emptyset_iterator polyline_output;
