@@ -14,6 +14,8 @@
 
 #include <map>
 #include <boost/foreach.hpp>
+#include <boost/format.hpp>
+using boost::format;
 
 namespace CGALUtils {
 
@@ -590,7 +592,7 @@ holding the polygon and it's holes. */
 bool tessellate_3d_face_with_holes( std::vector<CGAL_Polygon_3> &polygons, std::vector<CGAL_Polygon_3> &triangles, CGAL_Plane_3 &plane )
 {
 	if (polygons.size()==1 && polygons[0].size()==3) {
-		PRINT("input polygon has 3 points. shortcut tessellation.");
+		PRINTD("input polygon has 3 points. shortcut tessellation.");
 		CGAL_Polygon_3 t;
 		t.push_back(polygons[0][2]);
 		t.push_back(polygons[0][1]);
@@ -602,12 +604,12 @@ bool tessellate_3d_face_with_holes( std::vector<CGAL_Polygon_3> &polygons, std::
 	CDT cdt;
 	std::map<CDTPoint,CGAL_Point_3> vertmap;
 
-	PRINT("finding good projection");
+	PRINTD("finding good projection");
 	projection_t goodproj = find_good_projection( plane );
 
-	PRINTB("plane %s",plane );
-	PRINTB("proj: %i %i",goodproj.plane % goodproj.flip);
-	PRINT("Inserting points and edges into Constrained Delaunay Triangulation");
+	PRINTDB("plane %s",plane );
+	PRINTDB("proj: %i %i",goodproj.plane % goodproj.flip);
+	PRINTD("Inserting points and edges into Constrained Delaunay Triangulation");
 	std::vector< std::vector<CGAL_Point_2> > polygons2d;
 	for (size_t i=0;i<polygons.size();i++) {
 	        std::vector<Vertex_handle> vhandles;
@@ -636,7 +638,7 @@ bool tessellate_3d_face_with_holes( std::vector<CGAL_Polygon_3> &polygons, std::
 	}
 
 	size_t numholes = polygons2d.size()-1;
-	PRINTB("seeding %i holes",numholes);
+	PRINTDB("seeding %i holes",numholes);
 	std::list<CDTPoint> list_of_seeds;
 	for (size_t i=1;i<polygons2d.size();i++) {
 		std::vector<CGAL_Point_2> &pgon = polygons2d[i];
@@ -654,19 +656,18 @@ bool tessellate_3d_face_with_holes( std::vector<CGAL_Polygon_3> &polygons, std::
 	}
 	std::list<CDTPoint>::iterator li = list_of_seeds.begin();
 	for (;li!=list_of_seeds.end();li++) {
-		//PRINTB("seed %s",*li);
 		double x = CGAL::to_double( li->x() );
 		double y = CGAL::to_double( li->y() );
-		PRINTB("seed %f,%f",x%y);
+		PRINTDB("seed %f,%f",x%y);
 	}
-	PRINT("seeding done");
+	PRINTD("seeding done");
 
-	PRINT( "meshing" );
+	PRINTD( "meshing" );
 	CGAL::refine_Delaunay_mesh_2_without_edge_refinement( cdt,
 		list_of_seeds.begin(), list_of_seeds.end(),
 		DummyCriteria<CDT>() );
 
-	PRINT("meshing done");
+	PRINTD("meshing done");
 	// this fails because it calls is_simple and is_simple fails on many
 	// Nef Polyhedron faces
 	//CGAL::Orientation original_orientation =
@@ -695,7 +696,7 @@ bool tessellate_3d_face_with_holes( std::vector<CGAL_Polygon_3> &polygons, std::
                 }
         }
 
-	PRINTB("built %i triangles\n",triangles.size());
+	PRINTDB("built %i triangles\n",triangles.size());
 	return err;
 }
 /////// Tessellation end
@@ -917,13 +918,15 @@ public:
 #ifdef GEN_SURFACE_DEBUG
 		printf("],\n");
 
-		printf("points=[");
+		dbg.str("");
+		dbg<<"points=[";
 		for (int vidx=0;vidx<vertices.size();vidx++) {
-			if (vidx > 0) printf(",");
+			if (vidx > 0) dbg<<",";
 			const Vector3d &v = vertices.getArray()[vidx];
-			printf("[%g,%g,%g]", v[0], v[1], v[2]);
+			dbg<<format("[%g,%g,%g]") % v[0] % v[1] % v[2];
 		}
-		printf("]);\n");
+		dbg<<"]);";
+		PRINTDB("%s",dbg.str());
 #endif
 	}
 #endif
@@ -997,7 +1000,7 @@ void ZRemover::visit( CGAL_Nef_polyhedron3::Halffacet_const_handle hfacet )
 	log << " <!-- ZRemover Halffacet visit end -->\n";
 }
 
-static CGAL_Nef_polyhedron *createNefPolyhedronFromPolySet(const PolySet &ps)
+CGAL_Nef_polyhedron *createNefPolyhedronFromPolySet(const PolySet &ps)
 {
 	assert(ps.getDimension() == 3);
 	if (ps.isEmpty()) return new CGAL_Nef_polyhedron();
@@ -1025,16 +1028,19 @@ static CGAL_Nef_polyhedron *createNefPolyhedronFromPolySet(const PolySet &ps)
 			PRINTB("CGAL error in CGAL_Nef_polyhedron3(): %s", e.what());
 		}
 	}
-	if (plane_error) try {
+	if (plane_error) {
+		try {
 			PolySet ps2(3);
 			CGAL_Polyhedron P;
 			PolysetUtils::tessellate_faces(ps, ps2);
 			bool err = createPolyhedronFromPolySet(ps2,P);
 			if (!err) N = new CGAL_Nef_polyhedron3(P);
 		}
-		catch (const CGAL::Assertion_exception &e) {
+		catch (const CGAL::Failure_exception &e) {
 			PRINTB("Alternate construction failed. CGAL error in CGAL_Nef_polyhedron3(): %s", e.what());
+			N = new CGAL_Nef_polyhedron3();
 		}
+	}
 	CGAL::set_error_behaviour(old_behaviour);
 	return new CGAL_Nef_polyhedron(N);
 }

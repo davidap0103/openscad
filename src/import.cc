@@ -106,6 +106,7 @@ AbstractNode *ImportModule::instantiate(const Context *ctx, const ModuleInstanti
 		if (ext == ".stl") actualtype = TYPE_STL;
 		else if (ext == ".off") actualtype = TYPE_OFF;
 		else if (ext == ".dxf") actualtype = TYPE_DXF;
+		else if (ext == ".obj") actualtype = TYPE_OBJ;
 	}
 
 	ImportNode *node = new ImportNode(inst, actualtype);
@@ -171,7 +172,7 @@ void uint32_byte_swap( uint32_t &x )
 #endif
 }
 
-void read_stl_facet( std::ifstream &f, stl_facet &facet )
+void read_stl_facet( std::istream &f, stl_facet &facet )
 {
 	f.read( (char*)facet.data8, STL_FACET_NUMBYTES );
 #ifdef BOOST_BIG_ENDIAN
@@ -182,118 +183,260 @@ void read_stl_facet( std::ifstream &f, stl_facet &facet )
 #endif
 }
 
+// translate the polyset so it's center is at 0,0,0
+void center_polyset( PolySet &p )
+{
+	BoundingBox bb = p.getBoundingBox();
+	Vector3d t = -bb.min();
+	t -= (bb.max()-bb.min()) / 2;
+	p.translate( t );
+}
+
+/* create PolySet from GeomView's OFF format. return true on error,
+false on success. This is an alternative back-up to CGAL's OFF loader.
+CGAL's loader doesn't work on some OFF files, like those from the
+Antiprism program that have single-vertex color faces.
+Faces with <3 points, and colors, are completely ignored.
+On error, the PolySet may be left in a partially-built state. */
+bool createPolySetFromOFF( std::istream &in, PolySet &ps )
+{
+	bool err = false;
+	if (!in.good()) return true;
+	std::vector<Vector3d> vertlist;
+	std::string line;
+	size_t numvertices, numfaces, numfaceverts, vertindex;
+	double x,y,z;
+	if (!std::getline(in, line)) return true;
+	if (line.find("OFF")==std::string::npos) return true;
+	if (!std::getline(in, line)) return true;
+	if (!(std::istringstream(line) >> numvertices >> numfaces)) return true;
+	if (numvertices==0 || numfaces==0) return true;
+ 	for (size_t i=0;i<numvertices;i++) {
+		if (!(std::getline(in,line))) return true;
+		if (!(std::istringstream(line) >> x >> y >> z)) return true;
+		vertlist.push_back( Vector3d(x,y,z) );
+	}
+	for (size_t i=0;i<numfaces;i++) {
+		if (!std::getline(in,line)) return true;
+		std::istringstream ss(line);
+		if (!(ss >> numfaceverts)) return true;
+		// face with single vertex might be a weird color thing. skip.
+		if (numfaceverts<3) continue;
+		ps.append_poly();
+		for (size_t j=0;j<numfaceverts;j++) {
+			if (!(ss >> vertindex)) return true;
+			Vector3d v = vertlist[vertindex%vertlist.size()];
+			ps.append_vertex( v.x(), v.y(), v.z() );
+		}
+	}
+	if (ps.polygons.size()==0) return true;
+	return err;
+}
+
+
+/* create PolySet from Wavefront(TM) OBJ format stream. return true on error,
+false on success. Error during read can result in a mal-formed PolySet. 
+This code only reads simple vertices and faces, everything else is 
+ignored. Colors, Normals, and Textures are completely ignored. Face 
+point indexes with '/' textures will be read, but the textures are 
+ignored.
+*/
+bool createPolySetFromOBJ( std::istream &in, PolySet &ps )
+{
+	PRINTD("OBJ import");
+	bool err = false;
+	if (!in.good()) return true;
+	std::vector<Vector3d> vertlist;
+	std::string line,keyword,tmpline,faceindex;
+	int vertindex;
+	size_t pos;
+	double x,y,z;
+	while (std::getline(in, line)) {
+		// deal with the 'continued' line backslash feature of OBJ
+		while ((pos=line.find("\\"))!=std::string::npos) {
+			PRINTDB("line with backslash continuation: %s",line);
+			line = line.substr(0,pos==0 ? 0 : pos-1);
+			if (std::getline(in, tmpline)) {
+				PRINTDB(" adding tmpline %s",tmpline);
+				line += tmpline;
+			}
+		}
+		PRINTDB("line, full read: %s",line);
+		std::istringstream ss(line);
+		bool ok = (ss >> keyword);
+		if (ok && keyword == "v") {
+			if (!(ss >> x >> y >> z)) { return true; }
+			Vector3d v( x, y, z );
+			vertlist.push_back( v );
+			PRINTDB("vertex: %s",v.transpose());
+		}
+		else if (ok && keyword == "f") { // face
+			ps.append_poly();
+			while (ss >> faceindex) {
+				PRINTDB("face (vindexes) %s",faceindex);
+				if ((pos=faceindex.find("/"))!=std::string::npos) {
+					PRINTD(" vindex with /");
+					std::istringstream ss2(faceindex.substr(0,pos));
+					if (!(ss2 >> vertindex)) return true;
+				} else {
+					std::istringstream ss2(faceindex);
+					if (!(ss2 >> vertindex)) return true;
+				}
+				PRINTDB("vertindex %s",vertindex);
+				if (vertindex<0) {
+					PRINTD("<0, relative index");
+					vertindex = vertlist.size()+vertindex;
+				} else {
+					PRINTD(">0, absolute index (1based)");
+					vertindex--;
+				}
+				Vector3d v = vertlist[vertindex%vertlist.size()];
+				ps.append_vertex( v.x(), v.y(), v.z() );
+			}
+			if (ps.polygons.back().size()<3) return true;
+		}
+	}
+	if (ps.polygons.size()==0) return true;
+	return err;
+}
+
+/* create PolySet from STL format stream. return true on error, false on
+success. stream should be positioned at the end of file before passing
+to this function. */
+bool createPolySetFromSTL( std::istream &f, PolySet &p )
+{
+	bool err = false;
+	boost::regex ex_sfe("solid|facet|endloop");
+	boost::regex ex_outer("outer loop");
+	boost::regex ex_vertex("vertex");
+	boost::regex ex_vertices("\\s*vertex\\s+([^\\s]+)\\s+([^\\s]+)\\s+([^\\s]+)");
+
+	bool binary = false;
+	std::streampos file_size = f.tellg();
+	if (file_size==0) {
+		PRINT("WARNING: Import file has size of 0");
+		return true;
+	}
+	f.seekg(80);
+	if (!f.eof()) {
+		uint32_t facenum = 0;
+		f.read((char *)&facenum, sizeof(uint32_t));
+#ifdef BOOST_BIG_ENDIAN
+		uint32_byte_swap( facenum );
+#endif
+		if (file_size ==  static_cast<std::streamoff>(80 + 4 + 50*facenum)) {
+			binary = true;
+		}
+	}
+	f.seekg(0);
+
+	char data[5];
+	f.read(data, 5);
+	if (!binary && !f.eof() && !memcmp(data, "solid", 5)) {
+		int i = 0;
+		double vdata[3][3];
+		std::string line;
+		std::getline(f, line);
+		while (!f.eof()) {
+			
+			std::getline(f, line);
+			boost::trim(line);
+			if (boost::regex_search(line, ex_sfe)) {
+				continue;
+			}
+			if (boost::regex_search(line, ex_outer)) {
+				i = 0;
+				continue;
+			}
+			boost::smatch results;
+			if (boost::regex_search(line, results, ex_vertices)) {
+				try {
+					for (int v=0;v<3;v++) {
+						vdata[i][v] = boost::lexical_cast<double>(results[v+1]);
+					}
+				}
+				catch (const boost::bad_lexical_cast &blc) {
+					PRINTB("WARNING: Can't parse vertex line '%s'.", line);
+					i = 10;
+					continue;
+				}
+				if (++i == 3) {
+					p.append_poly();
+					p.append_vertex(vdata[0][0], vdata[0][1], vdata[0][2]);
+					p.append_vertex(vdata[1][0], vdata[1][1], vdata[1][2]);
+					p.append_vertex(vdata[2][0], vdata[2][1], vdata[2][2]);
+				}
+			}
+		}
+	}
+	else
+	{
+		f.ignore(80-5+4);
+		while (1) {
+			stl_facet facet;
+			read_stl_facet( f, facet );
+			if (f.eof()) break;
+			p.append_poly();
+			p.append_vertex(facet.data.x1, facet.data.y1, facet.data.z1);
+			p.append_vertex(facet.data.x2, facet.data.y2, facet.data.z2);
+			p.append_vertex(facet.data.x3, facet.data.y3, facet.data.z3);
+		}
+	}
+	if (p.polygons.size()==0) err = true;
+	return err;
+}
+
 /*!
-	Will return an empty geometry if the import failed, but not NULL
+	Create a new Geometry from the data in the file at this->filename.
+	Will return an empty geometry if the import failed, but not NULL.
+	The file will be closed before this function returns.
+	The caller is responsible for freeing the new Geometry memory.
 */
 Geometry *ImportNode::createGeometry() const
 {
 	Geometry *g = NULL;
+	bool err = false;
+	PolySet *p = NULL;
+
+	if (this->type & (TYPE_STL|TYPE_OFF|TYPE_OBJ)) {
+		p = new PolySet(3);
+		handle_dep((std::string)this->filename);
+	}
 
 	switch (this->type) {
 	case TYPE_STL: {
-		PolySet *p = new PolySet(3);
-		g = p;
-
-		handle_dep((std::string)this->filename);
 		// Open file and position at the end
 		std::ifstream f(this->filename.c_str(), std::ios::in | std::ios::binary | std::ios::ate);
-		if (!f.good()) {
-			PRINTB("WARNING: Can't open import file '%s'.", this->filename);
-			return g;
-		}
-
-		boost::regex ex_sfe("solid|facet|endloop");
-		boost::regex ex_outer("outer loop");
-		boost::regex ex_vertex("vertex");
-		boost::regex ex_vertices("\\s*vertex\\s+([^\\s]+)\\s+([^\\s]+)\\s+([^\\s]+)");
-
-		bool binary = false;
-		std::streampos file_size = f.tellg();
-		f.seekg(80);
-		if (!f.eof()) {
-			uint32_t facenum = 0;
-			f.read((char *)&facenum, sizeof(uint32_t));
-#ifdef BOOST_BIG_ENDIAN
-			uint32_byte_swap( facenum );
-#endif
-			if (file_size ==  static_cast<std::streamoff>(80 + 4 + 50*facenum)) {
-				binary = true;
-			}
-		}
-		f.seekg(0);
-
-		char data[5];
-		f.read(data, 5);
-		if (!binary && !f.eof() && !memcmp(data, "solid", 5)) {
-			int i = 0;
-			double vdata[3][3];
-			std::string line;
-			std::getline(f, line);
-			while (!f.eof()) {
-				
-				std::getline(f, line);
-				boost::trim(line);
-				if (boost::regex_search(line, ex_sfe)) {
-					continue;
-				}
-				if (boost::regex_search(line, ex_outer)) {
-					i = 0;
-					continue;
-				}
-				boost::smatch results;
-				if (boost::regex_search(line, results, ex_vertices)) {
-					try {
-						for (int v=0;v<3;v++) {
-							vdata[i][v] = boost::lexical_cast<double>(results[v+1]);
-						}
-					}
-					catch (const boost::bad_lexical_cast &blc) {
-						PRINTB("WARNING: Can't parse vertex line '%s'.", line);
-						i = 10;
-						continue;
-					}
-					if (++i == 3) {
-						p->append_poly();
-						p->append_vertex(vdata[0][0], vdata[0][1], vdata[0][2]);
-						p->append_vertex(vdata[1][0], vdata[1][1], vdata[1][2]);
-						p->append_vertex(vdata[2][0], vdata[2][1], vdata[2][2]);
-					}
-				}
-			}
-		}
-		else
-		{
-			f.ignore(80-5+4);
-			while (1) {
-				stl_facet facet;
-				read_stl_facet( f, facet );
-				if (f.eof()) break;
-				p->append_poly();
-				p->append_vertex(facet.data.x1, facet.data.y1, facet.data.z1);
-				p->append_vertex(facet.data.x2, facet.data.y2, facet.data.z2);
-				p->append_vertex(facet.data.x3, facet.data.y3, facet.data.z3);
-			}
-		}
+		if (!(err=f.bad())) err = createPolySetFromSTL( f, *p );
+		else PRINTB("WARNING: Can't open import file '%s'.", this->filename);
+		f.close();
 	}
 		break;
 	case TYPE_OFF: {
-		PolySet *p = new PolySet(3);
-		g = p;
-#ifdef ENABLE_CGAL
-		CGAL_Polyhedron poly;
+		bool try_polyset_read = true;
+#ifdef ENABLE_CGAL // we try CGAL read first, if it fails, we use polyset read
 		std::ifstream file(this->filename.c_str(), std::ios::in | std::ios::binary);
-		if (!file.good()) {
-			PRINTB("WARNING: Can't open import file '%s'.", this->filename);
+		if (!(err=file.bad())) {
+			CGAL_Polyhedron poly;
+			file >> poly;
+			if (poly.size_of_vertices()==0) {
+				PRINTDB("CGAL import of %s failed. Attempting PolySet import.", filename);
+			} else {
+				err = createPolySetFromPolyhedron(poly, *p);
+				if (!err) try_polyset_read = false;
+			}
 		}
 		else {
-			file >> poly;
-			file.close();
-			
-			bool err = createPolySetFromPolyhedron(poly, *p);
+			PRINTB("WARNING: Can't open import file '%s'.", this->filename);
 		}
-#else
-  PRINT("WARNING: OFF import requires CGAL.");
-#endif
+		file.close();
+#endif // ENABLE_CGAL
+		if (try_polyset_read) {
+			std::ifstream file(this->filename.c_str(), std::ios::in | std::ios::binary);
+			if (!(err=file.bad())) err = createPolySetFromOFF( file, *p );
+			else PRINTB("WARNING: Can't open import file '%s'.", this->filename);
+			file.close();
+		}
 	}
 		break;
 	case TYPE_DXF: {
@@ -301,9 +444,28 @@ Geometry *ImportNode::createGeometry() const
 		g = dd.toPolygon2d();
 	}
 		break;
+	case TYPE_OBJ: {
+		std::ifstream file(this->filename.c_str(), std::ios::in | std::ios::binary);
+		if (!(err=file.bad())) err = createPolySetFromOBJ( file, *p );
+		else PRINTB("WARNING: Can't open import file '%s'.", this->filename);
+		file.close();
+	}
+		break;
 	default:
 		PRINTB("ERROR: Unsupported file format while trying to import file '%s'", this->filename);
 		g = new PolySet(0);
+	}
+
+	if (this->type & (TYPE_STL|TYPE_OFF|TYPE_OBJ)) {
+		if (err) {
+			PRINTB("WARNING: Import of %s failed",this->filename);
+			p->polygons.clear();
+		} else if (this->center) {
+			center_polyset(*p);
+		}
+		if (OpenSCAD::debug!="")
+			PRINTDB("imported polyset:\n %s \n-----.", p->dump());
+		g = p;
 	}
 
 	if (g) g->setConvexity(this->convexity);
