@@ -484,6 +484,10 @@ add_definitions(${FONTCONFIG_CFLAGS})
 add_definitions(${FREETYPE_CFLAGS})
 add_definitions(${HARFBUZZ_CFLAGS})
 
+find_package(LibXml2 2.9 REQUIRED)
+add_definitions(${LIBXML2_DEFINITIONS})
+inclusion(LIBXML2_DIR LIBXML2_INCLUDE_DIR)
+
 # Imagemagick
 
 if (SKIP_IMAGEMAGICK)
@@ -614,6 +618,21 @@ set(CORE_SOURCES
   ../src/FreetypeRenderer.cc
   ../src/PlatformUtils.cc 
   ../src/lodepng.cpp
+  ../src/libsvg/circle.cc
+  ../src/libsvg/ellipse.cc
+  ../src/libsvg/group.cc
+  ../src/libsvg/libsvg.cc
+  ../src/libsvg/line.cc
+  ../src/libsvg/path.cc
+  ../src/libsvg/polygon.cc
+  ../src/libsvg/polyline.cc
+  ../src/libsvg/rect.cc
+  ../src/libsvg/shape.cc
+  ../src/libsvg/svgpage.cc
+  ../src/libsvg/transformation.cc
+  ../src/libsvg/util.cc
+  ../src/clipper-utils.cc 
+  ../src/polyclipping/clipper.cpp
   ../src/${PLATFORMUTILS_SOURCE}
   ${FLEX_OpenSCADlexer_OUTPUTS}
   ${BISON_OpenSCADparser_OUTPUTS})
@@ -639,8 +658,6 @@ set(COMMON_SOURCES
   ../src/nodedumper.cc 
   ../src/traverser.cc 
   ../src/GeometryCache.cc 
-  ../src/clipper-utils.cc 
-  ../src/polyclipping/clipper.cpp
   ../src/Tree.cc)
 
 #
@@ -678,7 +695,7 @@ if(NULLGL)
 endif()
 
 add_library(tests-core STATIC ${CORE_SOURCES})
-target_link_libraries(tests-core ${OPENGL_LIBRARIES} ${GLIB2_LIBRARIES} ${FONTCONFIG_LDFLAGS} ${FREETYPE_LDFLAGS} ${HARFBUZZ_LDFLAGS} ${Boost_LIBRARIES} ${COCOA_LIBRARY})
+target_link_libraries(tests-core ${OPENGL_LIBRARIES} ${GLIB2_LIBRARIES} ${FONTCONFIG_LDFLAGS} ${FREETYPE_LDFLAGS} ${HARFBUZZ_LDFLAGS} ${LIBXML2_LIBRARIES} ${Boost_LIBRARIES} ${COCOA_LIBRARY})
 
 add_library(tests-common STATIC ${COMMON_SOURCES})
 target_link_libraries(tests-common tests-core)
@@ -895,6 +912,7 @@ file(GLOB FEATURES_FILES ${CMAKE_SOURCE_DIR}/../testdata/scad/features/*.scad)
 file(GLOB SCAD_DXF_FILES ${CMAKE_SOURCE_DIR}/../testdata/scad/dxf/*.scad)
 file(GLOB FUNCTION_FILES ${CMAKE_SOURCE_DIR}/../testdata/scad/functions/*.scad)
 file(GLOB EXAMPLE_FILES ${CMAKE_SOURCE_DIR}/../examples/*/*.scad)
+file(GLOB SVGTEST_FILES ${CMAKE_SOURCE_DIR}/../testdata/svg/*/*.svg)
 
 list(APPEND ECHO_FILES ${FUNCTION_FILES}
             ${CMAKE_SOURCE_DIR}/../testdata/scad/features/for-tests.scad
@@ -1097,6 +1115,7 @@ add_cmdline_test(dumptest-examples EXE ${OPENSCAD_BINPATH} ARGS -o SUFFIX csg FI
 add_cmdline_test(cgalpngtest EXE ${OPENSCAD_BINPATH} ARGS --render -o SUFFIX png FILES ${CGALPNGTEST_FILES})
 add_cmdline_test(opencsgtest EXE ${OPENSCAD_BINPATH} ARGS -o SUFFIX png FILES ${OPENCSGTEST_FILES})
 add_cmdline_test(csgpngtest EXE ${PYTHON_EXECUTABLE} SCRIPT csg-import-test.py ARGS ${OPENSCAD_BINPATH} EXPECTEDDIR cgalpngtest SUFFIX png FILES ${CGALPNGTEST_FILES})
+add_cmdline_test(svgtest EXE ${PYTHON_EXECUTABLE} SCRIPT svg-test.py ARGS ${OPENSCAD_BINPATH} EXPECTEDDIR svglibtest SUFFIX png FILES ${SVGTEST_FILES})
 add_cmdline_test(throwntogethertest EXE ${OPENSCAD_BINPATH} ARGS --preview=throwntogether -o SUFFIX png FILES ${THROWNTOGETHERTEST_FILES})
 # FIXME: We don't actually need to compare the output of cgalstlsanitytest
 # with anything. It's self-contained and returns != 0 on error
