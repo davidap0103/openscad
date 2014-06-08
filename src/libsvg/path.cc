@@ -50,13 +50,23 @@ path::~path()
 {
 }
 
+static double
+vector_angle(double ux, double uy, double vx, double vy)
+{
+	double angle = atan2(vy, vx) - atan2(uy, ux);
+	if (angle < 0) {
+		angle += 2 * M_PI;
+	}
+	return angle;
+}
+
 void
-path::arc_to(path_t& path, double x, double y, double rx, double ry, double x2, double y2, double angle, bool large, bool sweep)
+path::arc_to(path_t& path, double x1, double y1, double rx, double ry, double x2, double y2, double angle, bool large, bool sweep)
 {
 	std::cout
 		<< "path: id = " << this->id
-		<< ", x = " << x
-		<< ", y = " << y
+		<< ", x1 = " << x
+		<< ", y1 = " << y
 		<< ", rx = " << rx
 		<< ", ry = " << ry
 		<< ", x2 = " << x2
@@ -65,82 +75,68 @@ path::arc_to(path_t& path, double x, double y, double rx, double ry, double x2, 
 		<< ", large = " << large
 		<< ", sweep = " << sweep
 		<< std::endl;
-        double cosr = cos(M_PI * angle / 180);
-        double sinr = sin(M_PI * angle / 180);
-        double dx = (x - x2) / 2;
-        double dy = (y - y2) / 2;
-        double x1prim = cosr * dx + sinr * dy;
-        double x1prim_sq = x1prim * x1prim;
-        double y1prim = -sinr * dx + cosr * dy;
-        double y1prim_sq = y1prim * y1prim;
+	
+	// http://www.w3.org/TR/SVG/implnote.html#ArcImplementationNotes
+	
+	// (F.6.5.1))
+        double cos_rad = cos(M_PI * angle / 180.0);
+        double sin_rad = sin(M_PI * angle / 180.0);
+        double dx = (x1 - x2) / 2;
+        double dy = (y1 - y2) / 2;
+        double x1_ = cos_rad * dx + sin_rad * dy;
+        double y1_ = -sin_rad * dx + cos_rad * dy;
 
-        double rx_sq = rx * rx;
-        double ry_sq = ry * ry;
-
-        double radius_check = (x1prim_sq / rx_sq) + (y1prim_sq / ry_sq);
-        if (radius_check > 1) {
-            rx *= sqrt(radius_check);
-            ry *= sqrt(radius_check);
-            rx_sq = rx * rx;
-            ry_sq = ry * ry;
+	double d = (x1_ * x1_) / (rx * rx) + (y1_ * y1_) / (ry * ry);
+	if (d > 1) {
+		rx = abs(sqrt(d) * rx);
+		ry = abs(sqrt(d) * ry);
 	}
-
-        double t1 = rx_sq * y1prim_sq;
-        double t2 = ry_sq * x1prim_sq;
-        double c = sqrt(abs((rx_sq * ry_sq - t1 - t2) / (t1 + t2)));
-        
-        if (large == sweep) {
-            c = -c;
+	
+	// F.6.5.2
+	double t1 = rx * rx * ry * ry - rx * rx * y1_ * y1_ - ry * ry * x1_ * x1_;
+	double t2 = rx * rx * y1_ * y1_ + ry * ry * x1_ * x1_;
+	if (t1 < 0) {
+		t1 = 0;
 	}
-        double cxprim = c * rx * y1prim / ry;
-        double cyprim = -c * ry * x1prim / rx;
-
-	double centerx = (cosr * cxprim - sinr * cyprim) + ((x + x2) / 2);
-	double centery = (sinr * cxprim + cosr * cyprim) + ((y + y2) / 2);
-
-        double ux = (x1prim - cxprim) / rx;
-        double uy = (y1prim - cyprim) / ry;
-        double vx = (-x1prim - cxprim) / rx;
-        double vy = (-y1prim - cyprim) / ry;
-        double n1 = sqrt(ux * ux + uy * uy);
-        double theta = acos(ux / n1);
-	if (uy < 0) {
-            theta = -theta;
+	double t3 = sqrt(t1 / t2);
+	if (large == sweep) {
+		t3 = -t3;
 	}
-        theta = fmod(theta, 2 * M_PI);
+	
+	double cx_ = t3 * rx * y1_ / ry;
+	double cy_ = t3 * -ry * x1_ / rx;
 
-        double n2 = sqrt((ux * ux + uy * uy) * (vx * vx + vy * vy));
-        double p = ux * vx + uy * vy;
-        double delta;
-	if (p == 0) {
-            delta = acos(0);
-        } else {
-            delta = acos(p / n2);
-	}
+	// F.6.5.3
+	double cx = cos_rad * cx_ - sin_rad * cy_ + (x1 + x2) / 2.0;
+	double cy = sin_rad * cx_ + cos_rad * cy_ + (y1 + y2) / 2.0;
 
-        if ((ux * vy - uy * vx) < 0) {
-            delta = -delta;
-	}
-        delta = fmod(delta, 2 * M_PI);
+	// F.6.5.4
+        double ux = (x1_ - cx_) / rx;
+        double uy = (y1_ - cy_) / ry;
+	double vx = (-x1_ - cx_) / rx;
+	double vy = (-y1_ - cy_) / ry;
+	
+	double theta = vector_angle(1, 0, ux, uy);
+	double delta = vector_angle(ux, uy, vx, vy);
 	if (!sweep) {
             delta -= 2 * M_PI;
 	}
 	
 	std::cout 
-		<< "cx = " << centerx
-		<< ", cy = " << centery
+		<< "cx = " << cx
+		<< ", cy = " << cy
 		<< ", theta = " << (theta * 180 / M_PI)
 		<< ", delta = " << (delta * 180 / M_PI) << std::endl;
 
-	int steps = 10;
+	int steps = std::abs(delta) * 10.0 / M_PI + 4;
 	for (int a = 0;a <= steps;a++) {
 	        double phi = theta + delta * a / steps;
 
-		double xx = cosr * cos(phi) * rx - sinr * sin(phi) * ry;
-		double yy = sinr * cos(phi) * rx + cosr * sin(phi) * ry;
+		double xx = cos_rad * cos(phi) * rx - sin_rad * sin(phi) * ry;
+		double yy = sin_rad * cos(phi) * rx + cos_rad * sin(phi) * ry;
 		
-		path.push_back(Eigen::Vector3d(xx + centerx, yy + centery, 0));
-	}	
+		path.push_back(Eigen::Vector3d(xx + cx, yy + cy, 0));
+	}
 }
 
 void
@@ -199,6 +195,7 @@ path::set_attrs(attr_map_t& attrs)
 	
 	bool negate = false;
 	bool path_closed = false;
+	std::string exp;
 	path_list.push_back(path_t());
 	for (tokenizer::iterator it = tokens.begin();it != tokens.end();++it) {
 		std::string v = (*it);
@@ -212,8 +209,18 @@ path::set_attrs(attr_map_t& attrs)
 			point = -1;
 			cmd = v[0];
 		} else {
-			p = atof(v.c_str());
-			p = negate ? -p : p;
+			if (*v.rbegin() == 'e') {
+				exp = negate ? std::string("-") + v : v;
+				negate = false;
+				continue;
+			}
+			if (exp.empty()) {
+				p = parse_double(v);
+				p = negate ? -p : p;
+			} else {
+				p = parse_double(exp + (negate ? "-" : "") + v);
+				exp = "";
+			}
 			negate = false;
 		}
 		
@@ -375,10 +382,10 @@ path::set_attrs(attr_map_t& attrs)
 					cx1 = x;
 					cy1 = y;
 				}
-				xx = cmd == 'q' ? x + p : p;
+				xx = cmd == 't' ? x + p : p;
 				break;
 			case 1:
-				yy = cmd == 'q' ? y + p : p;
+				yy = cmd == 't' ? y + p : p;
 				curve_to(path_list.back(), x, y, cx1, cy1, xx, yy);
 				x = xx;
 				y = yy;

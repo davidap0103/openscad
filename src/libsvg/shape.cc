@@ -4,6 +4,7 @@
 
 #include <boost/tokenizer.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/spirit/include/qi.hpp>
 
 #include "shape.h"
 #include "circle.h"
@@ -93,9 +94,9 @@ shape::get_stroke_width()
 {
 	double stroke_width;
 	if (this->stroke_width.empty()) {
-		stroke_width = atof(get_style("stroke-width").c_str());
+		stroke_width = parse_double(get_style("stroke-width"));
 	} else {
-		stroke_width = atof(this->stroke_width.c_str());
+		stroke_width = parse_double(this->stroke_width);
 	}
 	return stroke_width < 0.01 ? 1 : stroke_width;
 }

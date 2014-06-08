@@ -25,10 +25,10 @@ void
 ellipse::set_attrs(attr_map_t& attrs)
 {
 	shape::set_attrs(attrs);
-	this->x = atof(attrs["cx"].c_str());
-	this->y = atof(attrs["cy"].c_str());
-	this->rx = atof(attrs["rx"].c_str());
-	this->ry = atof(attrs["ry"].c_str());
+	this->x = parse_double(attrs["cx"]);
+	this->y = parse_double(attrs["cy"]);
+	this->rx = parse_double(attrs["rx"]);
+	this->ry = parse_double(attrs["ry"]);
 
 	path_t path;
 	draw_ellipse(path, get_x(), get_y(), get_radius_x(), get_radius_y());

@@ -10,6 +10,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
+#include "util.h"
 #include "polyclipping/clipper.hpp"
 
 namespace libsvg {

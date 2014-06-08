@@ -11,8 +11,10 @@ svgpage::svgpage()
 {
 }
 
-svgpage::svgpage(const svgpage& orig)
+svgpage::svgpage(const svgpage& orig) : shape(orig)
 {
+	width = orig.width;
+	height = orig.height;
 }
 
 svgpage::~svgpage()
@@ -24,8 +26,8 @@ svgpage::set_attrs(attr_map_t& attrs)
 {
 	this->x = 0;
 	this->y = 0;
-	this->width = atof(attrs["width"].c_str());
-	this->height = atof(attrs["height"].c_str());
+	this->width = parse_double(attrs["width"]);
+	this->height = parse_double(attrs["height"]);
 }
 
 void

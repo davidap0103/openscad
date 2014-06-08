@@ -79,12 +79,12 @@ void
 rect::set_attrs(attr_map_t& attrs)
 {
 	shape::set_attrs(attrs);
-	this->x = atof(attrs["x"].c_str());
-	this->y = atof(attrs["y"].c_str());
-	this->width = atof(attrs["width"].c_str());
-	this->height = atof(attrs["height"].c_str());
-	this->rx = atof(attrs["rx"].c_str());
-	this->ry = atof(attrs["ry"].c_str());
+	this->x = parse_double(attrs["x"]);
+	this->y = parse_double(attrs["y"]);
+	this->width = parse_double(attrs["width"]);
+	this->height = parse_double(attrs["height"]);
+	this->rx = parse_double(attrs["rx"]);
+	this->ry = parse_double(attrs["ry"]);
 
 	bool has_rx = !(abs(rx) < 1e-8);
 	bool has_ry = !(abs(ry) < 1e-8);

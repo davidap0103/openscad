@@ -29,12 +29,12 @@ polygon::set_attrs(attr_map_t& attrs)
 	boost::char_separator<char> sep(" ,");
 	tokenizer tokens(this->points, sep);
 
-	double x;
+	double x = 0.0;
 	path_t path;
 	bool first = true;
 	for (tokenizer::iterator it = tokens.begin();it != tokens.end();++it) {
 		std::string v = (*it);
-		double p = atof(v.c_str());
+		double p = parse_double(v);
 		
 		if (first) {
 			x = p;

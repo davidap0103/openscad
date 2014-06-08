@@ -2,6 +2,7 @@
 #include <vector>
 #include <iostream>
 
+#include "util.h"
 #include "transformation.h"
 
 namespace libsvg {
@@ -29,7 +30,7 @@ transformation::get_name()
 void
 transformation::add_arg(const std::string arg)
 {
-	double d = atof(arg.c_str());
+	double d = parse_double(arg);
 	args.push_back(d);
 }
 

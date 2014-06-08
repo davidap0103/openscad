@@ -21,9 +21,9 @@ void
 circle::set_attrs(attr_map_t& attrs)
 {
 	shape::set_attrs(attrs);
-	this->x = atof(attrs["cx"].c_str());
-	this->y = atof(attrs["cy"].c_str());
-	this->r = atof(attrs["r"].c_str());
+	this->x = parse_double(attrs["cx"]);
+	this->y = parse_double(attrs["cy"]);
+	this->r = parse_double(attrs["r"]);
 	
 	path_t path;
 	draw_ellipse(path, get_x(), get_y(), get_radius(), get_radius());
@@ -39,4 +39,5 @@ circle::dump()
 		<< ": r = " << this->r
 		<< std::endl;
 }
+
 }
