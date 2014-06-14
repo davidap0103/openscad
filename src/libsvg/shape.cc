@@ -81,7 +81,6 @@ shape::get_style(std::string name)
 		if (values.size() != 2) {
 			continue;
 		}
-		std::cout << "style: " << values[0] << " -> '" << values[1] << "'" << std::endl;
 		if (name == values[0]) {
 			return values[1];
 		}
@@ -132,7 +131,6 @@ shape::collect_transform_matrices(std::vector<Eigen::Matrix3d>& matrices, shape 
 	boost::replace_all(transform_arg, "rotate", "r");
 	boost::replace_all(transform_arg, "skewX", "x");
 	boost::replace_all(transform_arg, "skewY", "y");
-	std::cout << transform_arg << std::endl << ", " << std::endl;
 
 	std::string commands = "mtsrxy";
 	
@@ -190,14 +188,9 @@ void
 shape::apply_transform()
 {
 	std::vector<Eigen::Matrix3d> matrices;
-	std::cout << "matrices: " << std::endl;
 	for (shape *s = this;s->get_parent() != NULL;s = s->get_parent()) {
 		collect_transform_matrices(matrices, s);
 	}
-	for (std::vector<Eigen::Matrix3d>::iterator it = matrices.begin();it != matrices.end();it++) {
-		//std::cout << *it << std::endl << "---" << std::endl;
-	}
-	std::cout << "===" << std::endl;
 
 	path_list_t result_list;
 	for (path_list_t::iterator it = path_list.begin();it != path_list.end();it++) {

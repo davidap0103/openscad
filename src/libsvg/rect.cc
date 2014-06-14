@@ -123,7 +123,6 @@ rect::set_attrs(attr_map_t& attrs)
 		% (y + ry)
 		% rx % ry % (x + rx) % y
 			);
-		std::cout << "-> path : " << path << std::endl;
 		attrs["d"] = path;
 		path::set_attrs(attrs);
 	} else {

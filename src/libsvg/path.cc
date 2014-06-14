@@ -63,19 +63,6 @@ vector_angle(double ux, double uy, double vx, double vy)
 void
 path::arc_to(path_t& path, double x1, double y1, double rx, double ry, double x2, double y2, double angle, bool large, bool sweep)
 {
-	std::cout
-		<< "path: id = " << this->id
-		<< ", x1 = " << x
-		<< ", y1 = " << y
-		<< ", rx = " << rx
-		<< ", ry = " << ry
-		<< ", x2 = " << x2
-		<< ", y2 = " << y2
-		<< ", angle = " << angle
-		<< ", large = " << large
-		<< ", sweep = " << sweep
-		<< std::endl;
-	
 	// http://www.w3.org/TR/SVG/implnote.html#ArcImplementationNotes
 	
 	// (F.6.5.1))
@@ -122,12 +109,6 @@ path::arc_to(path_t& path, double x1, double y1, double rx, double ry, double x2
             delta -= 2 * M_PI;
 	}
 	
-	std::cout 
-		<< "cx = " << cx
-		<< ", cy = " << cy
-		<< ", theta = " << (theta * 180 / M_PI)
-		<< ", delta = " << (delta * 180 / M_PI) << std::endl;
-
 	int steps = std::abs(delta) * 10.0 / M_PI + 4;
 	for (int a = 0;a <= steps;a++) {
 	        double phi = theta + delta * a / steps;
@@ -449,7 +430,10 @@ path::set_attrs(attr_map_t& attrs)
 		case 'z':
 		case 'Z':
 			if (!path_list.back().empty()) {
-				path_list.back().push_back(path_list.back()[0]);
+				Eigen::Vector3d p = path_list.back()[0];
+				path_list.back().push_back(p);
+				x = p.x();
+				y = p.y();
 			}
 			path_list.push_back(path_t());
 			path_closed = true;
@@ -469,7 +453,6 @@ path::set_attrs(attr_map_t& attrs)
 		path_t path = path_list.back();
 		if (is_open_path(path)) {
 			path_list.pop_back();
-			std::cout << "not closed!" << std::endl;
 			offset_path(path_list, path, get_stroke_width(), get_stroke_linecap());
 		}
 	}

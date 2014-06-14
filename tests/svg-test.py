@@ -13,7 +13,7 @@ svgt = svg + ".temp.svg"
 print(bin, svg, png, scad)
 
 with open(scad, "wt") as scad_file:
-    scad_file.write("resize([0, 360, 0], auto = true) import(\"" + svgt + "\");\n")
+    scad_file.write("import(\"" + svgt + "\", width = 960, height = 720);\n")
 
 with open(svg, 'r') as svg_file:
     svg_content = svg_file.read()
@@ -24,6 +24,6 @@ svg_content = re.sub(r"<[^>]*id=\"test-frame\"[^>]*>", "<!-- test-frame removed 
 with open(svgt, "wt") as svg_temp_file:
     svg_temp_file.write(svg_content)
 
-subprocess.call([bin, scad, '--render', '--camera=0,0,0,0,0,0,2200', '--imgsize=960,720', '-o', png])
+subprocess.call([bin, scad, '--render', '--camera=0,0,0,0,0,0,4500', '--imgsize=960,720', '-o', png])
 os.remove(scad)
 os.remove(svgt)

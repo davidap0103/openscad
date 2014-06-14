@@ -16,12 +16,10 @@ parse_double(const std::string& number)
    bool result = boost::spirit::qi::parse(iter, end, double_parser, d);
    if(result && iter == end)
    {
-      std::cout << number << ": Success. Parsed: " << d << std::endl;
       return d;
    }
    else
    {
-      std::cout << number << ": Failure. Parsed: " << d << "; Remaining: " << std::string(iter,end) << std::endl;
       return 0;
    }
 }

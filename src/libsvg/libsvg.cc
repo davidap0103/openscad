@@ -57,8 +57,6 @@ void processNode(xmlTextReaderPtr reader)
 	case XML_READER_TYPE_ELEMENT:
 		isEmpty = xmlTextReaderIsEmptyElement(reader);
 	{
-
-		std::cout << "START: " << name << " - " << (isEmpty ? "empty" : "not empty") << std::endl;
 		path /= name;
 		
 		if (std::string("defs") == name) {
@@ -79,14 +77,11 @@ void processNode(xmlTextReaderPtr reader)
 			s->apply_transform();
 		}
 	}	
-	if (isEmpty) {
-		std::cout << "empty element..." << std::endl;
-	} else {
+	if (!isEmpty) {
 		break;
 	}
 	case XML_READER_TYPE_END_ELEMENT:
 	{
-		std::cout << "END: " << name << std::endl;
 		if (std::string("defs") == name) {
 			in_defs = false;
 		} else if (std::string("g") == name) {
@@ -158,7 +153,9 @@ libsvg_read_file(const char *filename)
 	shape_list = new shapes_list_t();
 	streamFile(filename);
 	
-	dump(0, (*shape_list)[0]);
+	if (!shape_list->empty()) {
+		dump(0, (*shape_list)[0]);
+	}
 	
 	return shape_list;
 }

@@ -138,6 +138,11 @@ AbstractNode *ImportModule::instantiate(const Context *ctx, const ModuleInstanti
 	if (node->scale <= 0)
 		node->scale = 1;
 
+	Value width = c.lookup_variable("width", true);
+	Value height = c.lookup_variable("height", true);
+	node->width = (width.type() == Value::NUMBER) ? width.toDouble() : -1;
+	node->height = (height.type() == Value::NUMBER) ? height.toDouble() : -1;
+	
 	return node;
 }
 
@@ -327,6 +332,18 @@ Geometry *ImportNode::createGeometry() const
 		
 		double cx = (x_min + x_max) / 2;
 		double cy = (y_min + y_max) / 2;
+		double scalex = 1.0;
+		double scaley = 1.0;
+		
+		if ((width > 0) && (height > 0)) {
+			double dx = x_max - x_min;
+			double dy = y_max - y_min;
+			if (width / dx < height / dy) {
+				scalex = scaley = width / dx;
+			} else {
+				scalex = scaley = height / dy;
+			}
+		}
 		
 		Polygon2d *poly = new Polygon2d();
 		for (libsvg::shapes_list_t::iterator it = shapes->begin();it != shapes->end();it++) {
@@ -339,7 +356,7 @@ Geometry *ImportNode::createGeometry() const
 					Eigen::Vector3d& v = *it2;
 					double x = v.x() - cx;
 					double y = -v.y() + cy;
-					outline.vertices.push_back(Vector2d(x, y));
+					outline.vertices.push_back(Vector2d(scalex * x, scaley * y));
 				}
 				poly->addOutline(outline);
 			}
