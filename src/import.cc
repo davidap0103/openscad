@@ -303,7 +303,6 @@ Geometry *ImportNode::createGeometry() const
 		break;
 	case TYPE_SVG: {
 		libsvg::shapes_list_t *shapes = libsvg::libsvg_read_file(this->filename.c_str());
-		DxfData dd;
 		double x_min = 1.0/0.0;
 		double x_max = -1.0/0.0;
 		double y_min = 1.0/0.0;
