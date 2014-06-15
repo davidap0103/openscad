@@ -211,6 +211,7 @@ MainWindow::MainWindow(const QString &filename)
 	knownFileExtensions["stl"] = importStatement;
 	knownFileExtensions["off"] = importStatement;
 	knownFileExtensions["dxf"] = importStatement;
+	knownFileExtensions["svg"] = importStatement;
 	knownFileExtensions["dat"] = surfaceStatement;
 	knownFileExtensions["png"] = surfaceStatement;
 	knownFileExtensions["scad"] = "";
