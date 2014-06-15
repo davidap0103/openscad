@@ -139,13 +139,12 @@ shape::collect_transform_matrices(std::vector<Eigen::Matrix3d>& matrices, shape 
 	tokenizer tokens(transform_arg, sep);
 
 	transformation *t = NULL;
+	std::vector<transformation *> transformations;
 	for (tokenizer::iterator it = tokens.begin();it != tokens.end();++it) {
 		std::string v = (*it);
 		if ((v.length() == 1) && (commands.find(v) != std::string::npos)) {
-			if (t) {
-				std::vector<Eigen::Matrix3d> m = t->get_matrices();
-				matrices.insert(matrices.begin(), m.begin(), m.end());
-				delete t;
+			if (t != NULL) {
+				transformations.push_back(t);
 				t = NULL;
 			}
 			switch (v[0]) {
@@ -177,9 +176,14 @@ shape::collect_transform_matrices(std::vector<Eigen::Matrix3d>& matrices, shape 
 			}
 		}
 	}
-	if (t) {
+	if (t != NULL) {
+		transformations.push_back(t);
+	}
+	
+	for (std::vector<transformation *>::reverse_iterator it = transformations.rbegin();it != transformations.rend();it++) {
+		transformation *t = *it;
 		std::vector<Eigen::Matrix3d> m = t->get_matrices();
-		matrices.insert(matrices.begin(), m.begin(), m.end());
+		matrices.insert(matrices.begin(), m.rbegin(), m.rend());
 		delete t;
 	}
 }

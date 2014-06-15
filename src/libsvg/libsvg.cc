@@ -152,11 +152,13 @@ libsvg_read_file(const char *filename)
 {
 	shape_list = new shapes_list_t();
 	streamFile(filename);
-	
-	if (!shape_list->empty()) {
-		dump(0, (*shape_list)[0]);
-	}
-	
+
+//#ifdef DEBUG
+//	if (!shape_list->empty()) {
+//		dump(0, (*shape_list)[0]);
+//	}
+//#endif
+
 	return shape_list;
 }
 

@@ -456,8 +456,6 @@ path::set_attrs(attr_map_t& attrs)
 			offset_path(path_list, path, get_stroke_width(), get_stroke_linecap());
 		}
 	}
-	
-	path::dump();
 }
 
 bool
@@ -466,7 +464,7 @@ path::is_open_path(path_t& path)
 	const Eigen::Vector3d p1 = path[0];
 	const Eigen::Vector3d p2 = path.back();
 	double distance = pow(pow(p1.x() - p2.x(), 2) + pow(p1.y() - p2.y(), 2) + pow(p1.z() - p2.z(), 2), 0.5);
-	return distance > 0.01;
+	return distance > 0.1;
 }
 
 void

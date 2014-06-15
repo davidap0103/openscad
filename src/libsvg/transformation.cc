@@ -34,6 +34,16 @@ transformation::add_arg(const std::string arg)
 	args.push_back(d);
 }
 
+const std::string
+transformation::get_args() {
+	std::stringstream str;
+	for (int a = 0;a < args.size();a++) {
+		str << ((a == 0) ? "(" : ", ") << args[a];
+	}
+	str << ")";
+	return str.str();
+}
+
 matrix::matrix() : transformation("m", "matrix")
 {
 }

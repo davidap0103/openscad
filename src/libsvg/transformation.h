@@ -22,6 +22,7 @@ public:
     
     virtual const std::string& get_op();
     virtual const std::string& get_name();
+    virtual const std::string get_args();
     
     virtual void add_arg(const std::string arg);
     virtual std::vector<Eigen::Matrix3d> get_matrices() = 0;
