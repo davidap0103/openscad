@@ -390,6 +390,7 @@ SOURCES += \
            src/export.cc \
            src/export_png.cc \
            src/import.cc \
+           src/import_amf.cc \
            src/renderer.cc \
            src/ThrownTogetherRenderer.cc \
            src/CSGTermEvaluator.cc \
