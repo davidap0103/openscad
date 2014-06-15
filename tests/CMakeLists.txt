@@ -640,6 +640,7 @@ set(CORE_SOURCES
 set(NOCGAL_SOURCES
   ../src/builtin.cc 
   ../src/import.cc
+  ../src/import_amf.cc
   ../src/export.cc)
 
 set(CGAL_SOURCES
@@ -913,6 +914,7 @@ file(GLOB SCAD_DXF_FILES ${CMAKE_SOURCE_DIR}/../testdata/scad/dxf/*.scad)
 file(GLOB FUNCTION_FILES ${CMAKE_SOURCE_DIR}/../testdata/scad/functions/*.scad)
 file(GLOB EXAMPLE_FILES ${CMAKE_SOURCE_DIR}/../examples/*/*.scad)
 file(GLOB SVGTEST_FILES ${CMAKE_SOURCE_DIR}/../testdata/svg/*/*.svg)
+file(GLOB AMFTEST_FILES ${CMAKE_SOURCE_DIR}/../testdata/scad/amf/*.scad)
 
 list(APPEND ECHO_FILES ${FUNCTION_FILES}
             ${CMAKE_SOURCE_DIR}/../testdata/scad/features/for-tests.scad
@@ -1116,6 +1118,7 @@ add_cmdline_test(cgalpngtest EXE ${OPENSCAD_BINPATH} ARGS --render -o SUFFIX png
 add_cmdline_test(opencsgtest EXE ${OPENSCAD_BINPATH} ARGS -o SUFFIX png FILES ${OPENCSGTEST_FILES})
 add_cmdline_test(csgpngtest EXE ${PYTHON_EXECUTABLE} SCRIPT csg-import-test.py ARGS ${OPENSCAD_BINPATH} EXPECTEDDIR cgalpngtest SUFFIX png FILES ${CGALPNGTEST_FILES})
 add_cmdline_test(svgtest EXE ${PYTHON_EXECUTABLE} SCRIPT svg-test.py ARGS ${OPENSCAD_BINPATH} EXPECTEDDIR svglibtest SUFFIX png FILES ${SVGTEST_FILES})
+add_cmdline_test(amftest EXE ${OPENSCAD_BINPATH} ARGS -o SUFFIX png FILES ${AMFTEST_FILES})
 add_cmdline_test(throwntogethertest EXE ${OPENSCAD_BINPATH} ARGS --preview=throwntogether -o SUFFIX png FILES ${THROWNTOGETHERTEST_FILES})
 # FIXME: We don't actually need to compare the output of cgalstlsanitytest
 # with anything. It's self-contained and returns != 0 on error
