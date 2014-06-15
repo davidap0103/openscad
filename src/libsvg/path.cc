@@ -449,7 +449,7 @@ path::set_attrs(attr_map_t& attrs)
 		path_list.pop_back();
 	}
 	
-	if (!path_closed) {
+	if (!path_closed && !path_list.empty()) {
 		path_t path = path_list.back();
 		if (is_open_path(path)) {
 			path_list.pop_back();
