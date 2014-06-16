@@ -201,13 +201,17 @@ PolySet *import_amf(const std::string filename) {
 
 	PolySet *p;
 #ifdef ENABLE_CGAL
-	Geometry::ChildList children;
-	for (std::vector<PolySet *>::iterator it = polySets.begin();it != polySets.end();it++) {
-		children.push_back(std::make_pair((const AbstractNode*)NULL,  shared_ptr<const Geometry>(*it)));
+	if (polySets.size() == 1) {
+		p = polySets[0];
+	} else {
+		Geometry::ChildList children;
+		for (std::vector<PolySet *>::iterator it = polySets.begin();it != polySets.end();it++) {
+			children.push_back(std::make_pair((const AbstractNode*)NULL,  shared_ptr<const Geometry>(*it)));
+		}
+		CGAL_Nef_polyhedron N;
+		CGALUtils::applyOperator(children, N, OPENSCAD_UNION);
+		p = N.convertToPolyset();
 	}
-	CGAL_Nef_polyhedron N;
-	CGALUtils::applyOperator(children, N, OPENSCAD_UNION);
-	p = N.convertToPolyset();
 #else
 	p = new PolySet(3);
 #endif
