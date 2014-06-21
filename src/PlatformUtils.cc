@@ -94,6 +94,12 @@ bool PlatformUtils::createBackupPath()
 #endif // GNUG
 #endif // ENABLE_CGAL
 
+#ifdef ENABLE_LIBZIP
+#include <zip.h>
+#else
+#define LIBZIP_VERSION "<not enabled>"
+#endif
+
 std::string PlatformUtils::info()
 {
 	std::stringstream s;
@@ -156,6 +162,7 @@ std::string PlatformUtils::info()
 	  << "\nQt version: " << qtVersion
 	  << "\nMingW build: " << mingwstatus
 	  << "\nGLib version: "       << GLIB_MAJOR_VERSION << "." << GLIB_MINOR_VERSION << "." << GLIB_MICRO_VERSION
+	  << "\nlibzip version: " << LIBZIP_VERSION
 	  << "\nOPENSCADPATH: " << (env_path == NULL ? "<not set>" : env_path)
 	  << "\nOpenSCAD library path:\n";
 

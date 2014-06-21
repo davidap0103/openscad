@@ -179,6 +179,7 @@ CONFIG += harfbuzz
 CONFIG += freetype
 CONFIG += fontconfig
 CONFIG += libxml2
+CONFIG += libzip
 
 #Uncomment the following line to enable QCodeEdit
 #CONFIG += qcodeedit
