@@ -1,5 +1,6 @@
 #include "Camera.h"
 #include "rendersettings.h"
+#include "printutils.h"
 
 Camera::Camera(enum CameraType camtype) :
 	type(camtype), projection(Camera::PERSPECTIVE), fov(45), height(60), viewall(false)
@@ -15,6 +16,7 @@ Camera::Camera(enum CameraType camtype) :
 	}
 	pixel_width = RenderSettings::inst()->img_width;
 	pixel_height = RenderSettings::inst()->img_height;
+	autocenter = false;
 }
 
 void Camera::setup(std::vector<double> params)
@@ -24,6 +26,7 @@ void Camera::setup(std::vector<double> params)
 		object_trans << params[0], params[1], params[2];
 		object_rot << params[3], params[4], params[5];
 		viewer_distance = params[6];
+		height = params[6];
 	} else if (params.size() == 6) {
 		type = Camera::VECTOR;
 		eye << params[0], params[1], params[2];
@@ -52,23 +55,33 @@ void Camera::viewAll(const BoundingBox &bbox, float scalefactor)
 {
 	if (this->type == Camera::NONE) {
 		this->type = Camera::VECTOR;
-		this->center = getBoundingCenter(bbox);
+		this->center = bbox.center();
 		this->eye = this->center - Vector3d(1,1,-0.5);
+	}
+
+	if (this->autocenter) {
+		// autocenter = point camera at the center of the bounding box.
+        if (this->type == Camera::GIMBAL) {
+            this->object_trans = -bbox.center(); // for Gimbal cam
+        }
+        else if (this->type == Camera::VECTOR) {
+            Vector3d dir = this->center - this->eye;
+            this->center = bbox.center(); // for Vector cam
+            this->eye = this->center - dir;
+        }
 	}
 
 	switch (this->projection) {
 	case Camera::ORTHOGONAL:
-		this->height = getBoundingRadius(bbox)*2;
+		this->height = bbox.diagonal().norm();
 		break;
 	case Camera::PERSPECTIVE: {
-		double radius = getBoundingRadius(bbox);
+		double radius = bbox.diagonal().norm()/2;
 		switch (this->type) {
 		case Camera::GIMBAL:
-			// FIXME: viewAll() of gimbal cameras doesn't work
 			this->viewer_distance = radius / tan(this->fov*M_PI/360);
 			break;
 		case Camera::VECTOR: {
-			// FIXME: viewAll() of orthographic cameras doesn't work
 			Vector3d cameradir = (this->center - this->eye).normalized();
 			this->eye = this->center - radius*scalefactor*cameradir;
 			break;
@@ -78,5 +91,30 @@ void Camera::viewAll(const BoundingBox &bbox, float scalefactor)
 		}
 	}
 		break;
+	}
+}
+
+void Camera::zoom(int delta)
+{
+	if (this->projection == PERSPECTIVE) {
+		this->viewer_distance *= pow(0.9, delta / 120.0);
+	}
+	else {
+		this->height *= pow(0.9, delta / 120.0);
+	}
+}
+
+void Camera::setProjection(ProjectionType type)
+{
+	if (this->projection != type) {
+		switch (type) {
+		case PERSPECTIVE:
+			this->viewer_distance = this->height;
+			break;
+		case ORTHOGONAL:
+			this->height = this->viewer_distance;
+			break;
+		}
+		this->projection = type;
 	}
 }

@@ -36,6 +36,7 @@
 #include "highlighter.h"
 #include "export.h"
 #include "builtin.h"
+#include "expression.h"
 #include "progress.h"
 #include "dxfdim.h"
 #include "AboutDialog.h"
@@ -54,6 +55,7 @@
 #include "CocoaUtils.h"
 #endif
 #include "PlatformUtils.h"
+#include "LibraryInfo.h"
 
 #include <QMenu>
 #include <QTime>
@@ -95,10 +97,6 @@
 #include "cgal.h"
 #include "cgalworker.h"
 #include "cgalutils.h"
-
-#else
-
-#include "PolySetEvaluator.h"
 
 #endif // ENABLE_CGAL
 
@@ -372,6 +370,7 @@ MainWindow::MainWindow(const QString &filename)
 	connect(this->viewActionDiagonal, SIGNAL(triggered()), this, SLOT(viewAngleDiagonal()));
 	connect(this->viewActionCenter, SIGNAL(triggered()), this, SLOT(viewCenter()));
 	connect(this->viewActionResetView, SIGNAL(triggered()), this, SLOT(viewResetView()));
+	connect(this->viewActionViewAll, SIGNAL(triggered()), this, SLOT(viewAll()));
 	connect(this->viewActionPerspective, SIGNAL(triggered()), this, SLOT(viewPerspective()));
 	connect(this->viewActionOrthogonal, SIGNAL(triggered()), this, SLOT(viewOrthogonal()));
 	connect(this->viewActionHide, SIGNAL(triggered()), this, SLOT(hideConsole()));
@@ -400,7 +399,6 @@ MainWindow::MainWindow(const QString &filename)
 
 	connect(editor->document(), SIGNAL(contentsChanged()), this, SLOT(animateUpdateDocChanged()));
 	connect(editor->document(), SIGNAL(modificationChanged(bool)), this, SLOT(setWindowModified(bool)));
-	connect(editor->document(), SIGNAL(modificationChanged(bool)), fileActionSave, SLOT(setEnabled(bool)));
 	connect(this->qglview, SIGNAL(doAnimateUpdate()), this, SLOT(animateUpdate()));
 
 	connect(Preferences::inst(), SIGNAL(requestRedraw()), this->qglview, SLOT(updateGL()));
@@ -1170,6 +1168,8 @@ void MainWindow::actionSave()
 		actionSaveAs();
 	}
 	else {
+		if (!editor->isContentModified())
+			return;
 		setCurrentOutput();
 		QFile file(this->fileName);
 		if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
@@ -1364,6 +1364,76 @@ void MainWindow::updateTemporalVariables()
 	vpr.push_back(Value(fmodf(360 - qglview->cam.object_rot.y(), 360)));
 	vpr.push_back(Value(fmodf(360 - qglview->cam.object_rot.z(), 360)));
 	top_ctx.set_variable("$vpr", Value(vpr));
+
+	top_ctx.set_variable("$vpd", Value(qglview->cam.viewer_distance));
+}
+
+
+/*!
+ * Update the viewport camera by evaluating the special variables. If they
+ * are assigned on top-level, the values are used to change the camera
+ * rotation, translation and distance. 
+ */
+void MainWindow::updateCamera()
+{
+	if (!root_module)
+		return;
+	
+	bool camera_set = false;
+
+	Camera cam(qglview->cam);
+	cam.gimbalDefaultTranslate();
+	double tx = cam.object_trans.x();
+	double ty = cam.object_trans.y();
+	double tz = cam.object_trans.z();
+	double rx = cam.object_rot.x();
+	double ry = cam.object_rot.y();
+	double rz = cam.object_rot.z();
+	double d = cam.viewer_distance;
+
+	ModuleContext mc(&top_ctx, NULL);
+	mc.initializeModule(*root_module);
+
+	BOOST_FOREACH(const Assignment &a, root_module->scope.assignments) {
+		double x, y, z;
+		if ("$vpr" == a.first) {
+			const Value vpr = a.second.get()->evaluate(&mc);
+			if (vpr.getVec3(x, y, z)) {
+				rx = x;
+				ry = y;
+				rz = z;
+				camera_set = true;
+			}
+		} else if ("$vpt" == a.first) {
+			const Value vpt = a.second.get()->evaluate(&mc);
+			if (vpt.getVec3(x, y, z)) {
+				tx = x;
+				ty = y;
+				tz = z;
+				camera_set = true;
+			}
+		} else if ("$vpd" == a.first) {
+			const Value vpd = a.second.get()->evaluate(&mc);
+			if (vpd.type() == Value::NUMBER) {
+				d = vpd.toDouble();
+				camera_set = true;
+			}
+		}
+	}
+
+	if (camera_set) {
+		std::vector<double> params;
+		params.push_back(tx);
+		params.push_back(ty);
+		params.push_back(tz);
+		params.push_back(rx);
+		params.push_back(ry);
+		params.push_back(rz);
+		params.push_back(d);
+		qglview->cam.setup(params);
+		qglview->cam.gimbalDefaultTranslate();
+		qglview->updateGL();
+	}
 }
 
 /*!
@@ -1411,6 +1481,7 @@ void MainWindow::compileTopLevelDocument()
 														QFileInfo(this->fileName).absolutePath().toLocal8Bit(),
 														false);
 
+	updateCamera();
 }
 
 void MainWindow::checkAutoReload()
@@ -2078,6 +2149,12 @@ void MainWindow::viewResetView()
 	this->qglview->updateGL();
 }
 
+void MainWindow::viewAll()
+{
+	this->qglview->viewAll();
+	this->qglview->updateGL();
+}
+
 void MainWindow::on_editorDock_visibilityChanged(bool visible)
 {
 	if (isClosing) {
@@ -2195,14 +2272,14 @@ MainWindow::helpManual()
 
 void MainWindow::helpLibrary()
 {
-	QString info( PlatformUtils::info().c_str() );
-	info += QString( qglview->getRendererInfo().c_str() );
+	QString info(LibraryInfo::info().c_str());
+	info += QString(qglview->getRendererInfo().c_str());
 	if (!this->openglbox) {
 		this->openglbox = new QMessageBox(QMessageBox::Information,
                                       "OpenGL Info", "OpenSCAD Detailed Library and Build Information",
                                       QMessageBox::Ok, this);
 	}
-	this->openglbox->setDetailedText( info );
+	this->openglbox->setDetailedText(info);
 	this->openglbox->show();
 }
 
