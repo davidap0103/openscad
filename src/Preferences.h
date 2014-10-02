@@ -3,9 +3,7 @@
 #include <QMainWindow>
 #include <QSettings>
 #include "ui_Preferences.h"
-#include "rendersettings.h"
-#include "linalg.h"
-#include <map>
+#include "colormap.h"
 
 class Preferences : public QMainWindow, public Ui::Preferences
 {
@@ -37,14 +35,18 @@ public slots:
 	void on_mdiCheckBox_toggled(bool);
 	void on_undockCheckBox_toggled(bool);
 	void on_checkNowButton_clicked();
+	void on_launcherBox_toggled(bool);
+	void on_editorType_editTextChanged(const QString &);
 
 signals:
 	void requestRedraw() const;
 	void updateMdiMode(bool mdi) const;
 	void updateUndockMode(bool mdi) const;
 	void fontChanged(const QString &family, uint size) const;
+	void colorSchemeChanged(const QString &scheme) const;
 	void openCSGSettingsChanged() const;
 	void syntaxHighlightChanged(const QString &s);
+	void editorTypeChanged(const QString &type);
 
 private:
 	Preferences(QWidget *parent = NULL);
@@ -55,7 +57,6 @@ private:
 	void addPrefPage(QActionGroup *group, QAction *action, QWidget *widget);
 
 	QSettings::SettingsMap defaultmap;
-	QHash<QString, std::map<RenderSettings::RenderColor, Color4f> > colorschemes;
 	QHash<const QAction *, QWidget *> prefPages;
 
 	static Preferences *instance;
