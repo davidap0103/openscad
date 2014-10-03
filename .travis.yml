@@ -1,3 +1,4 @@
+os: osx
 language: cpp
 cache: apt
 compiler: gcc
