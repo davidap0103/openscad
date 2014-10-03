@@ -1,12 +1,15 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QIcon>
 #include "ui_MainWindow.h"
+#include "UIUtils.h"
 #include "openscad.h"
 #include "modcontext.h"
 #include "module.h"
 #include "Tree.h"
 #include "memory.h"
+#include "editor.h"
 #include <vector>
 #include <QMutex>
 #include <QSet>
@@ -60,11 +63,12 @@ public:
 	std::vector<shared_ptr<CSGTerm> > background_terms;
 	CSGChain *background_chain;
 	QString last_compiled_doc;
-	static QString qexamplesdir;
 
-	static const int maxRecentFiles = 10;
-	QAction *actionRecentFile[maxRecentFiles];
+	QAction *actionRecentFile[UIUtils::maxRecentFiles];
         QMap<QString, QString> knownFileExtensions;
+
+	QString editortype;	
+	bool useScintilla;
 
 	MainWindow(const QString &filename);
 	~MainWindow();
@@ -79,9 +83,9 @@ private slots:
         void updateUndockMode(bool undockMode);
 	void setFileName(const QString &filename);
 	void setFont(const QString &family, uint size);
+	void setColorScheme(const QString &cs);
 	void showProgress();
 	void openCSGSettingsChanged();
-
 private:
 	void openFile(const QString &filename);
         void handleFileDrop(const QString &filename);
@@ -103,8 +107,11 @@ private:
 	QString get2dExportFilename(QString format, QString extension);
 	void show_examples();
 	void setDockWidgetTitle(QDockWidget *dockWidget, QString prefix, bool topLevel);
+        void addKeyboardShortCut(const QList<QAction *> &actions);
 
-  class QMessageBox *openglbox;
+	EditorInterface *editor;
+
+  class LibraryInfoDialog* library_info_dialog;
   class FontListDialog *font_list_dialog;
 
 private slots:
@@ -120,29 +127,35 @@ private slots:
 	void actionSaveAs();
 	void actionReload();
 	void actionShowLibraryFolder();
+        void convertTabsToSpaces();
 
 	void instantiateRoot();
 	void compileDone(bool didchange);
 	void compileEnded();
 
 private slots:
-        void pasteText(const QString text);
 	void pasteViewportTranslation();
 	void pasteViewportRotation();
-	void hideEditor();
 	void preferences();
+	void hideToolbars();
+	void hideEditor();
+	void hideConsole();
 
 private slots:
 	void selectFindType(int);
 	void find();
+	void findString(QString);
 	void findAndReplace();
 	void findNext();
 	void findPrev();
 	void useSelectionForFind();
 	void replace();
 	void replaceAll();
+
+	// Mac OSX FindBuffer support
+	void findBufferChanged();
+	void updateFindBuffer(QString);
 protected:
-	bool findOperation(QTextDocument::FindFlags options = 0);
 	virtual bool eventFilter(QObject* obj, QEvent *event);
 
 private slots:
@@ -170,7 +183,6 @@ private slots:
 
 public:
 	static QSet<MainWindow*> *windows;
-	static void setExamplesDir(const QString &dir) { MainWindow::qexamplesdir = dir; }
 	void viewModeActionsUncheck();
 	void setCurrentOutput();
 	void clearCurrentOutput();
@@ -205,7 +217,6 @@ public slots:
 	void viewOrthogonal();
 	void viewResetView();
 	void viewAll();
-	void hideConsole();
 	void animateUpdateDocChanged();
 	void animateUpdate();
 	void dragEnterEvent(QDragEnterEvent *event);

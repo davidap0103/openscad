@@ -25,8 +25,8 @@ import sys, os, re, subprocess, argparse
 
 def failquit(*args):
 	if len(args)!=0: print(args)
-	print('test_3d_export args:',str(sys.argv))
-	print('exiting test_3d_export.py with failure')
+	print('export_import_pngtest args:',str(sys.argv))
+	print('exiting export_import_pngtest.py with failure')
 	sys.exit(1)
 
 def createImport(inputfile, scadfile):
@@ -98,7 +98,7 @@ if args.format != 'csg':
         newscadfile += '.scad'
         createImport(exportfile, newscadfile)
 
-create_png_cmd = [args.openscad, newscadfile, '--enable=text', '--render', '-o', pngfile] + remaining_args
+create_png_cmd = [args.openscad, newscadfile, '--enable=text', '-o', pngfile] + remaining_args
 print('Running OpenSCAD #2:')
 print(' '.join(create_png_cmd))
 fontdir =  os.path.join(os.path.dirname(args.openscad), "..", "testdata");
