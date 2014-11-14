@@ -412,47 +412,47 @@ void export_amf(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 
 	NefPoly_to_ASCII_Triangles( *root_N, vertices, triangles );
 
-	output << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
-		<< "<amf unit=\"millimeter\">\r\n"
+	output << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+		<< "<amf unit=\"millimeter\">\n"
 		<< " <metadata type=\"producer\">OpenSCAD " << QUOTED(OPENSCAD_VERSION)
 #ifdef OPENSCAD_COMMIT
 		<< " (git " << QUOTED(OPENSCAD_COMMIT) << ")"
 #endif
-		<< "</metadata>\r\n"
-		<< " <object id=\"0\">\r\n"
-		<< "  <mesh>\r\n";
-	output << "   <vertices>\r\n";
+		<< "</metadata>\n"
+		<< " <object id=\"0\">\n"
+		<< "  <mesh>\n";
+	output << "   <vertices>\n";
 	for (size_t i = 0; i < vertices.size(); i++) {
 		std::string x,y,z;
 		std::istringstream stream(vertices[i]);
 		if (!(stream >> x >> y >> z)) return;
-		output << "    <vertex><coordinates>\r\n";
-		output << "     <x>" << x << "</x>\r\n";
-		output << "     <y>" << y << "</y>\r\n";
-		output << "     <z>" << z << "</z>\r\n";
-		output << "    </coordinates></vertex>\r\n";
+		output << "    <vertex><coordinates>\n";
+		output << "     <x>" << x << "</x>\n";
+		output << "     <y>" << y << "</y>\n";
+		output << "     <z>" << z << "</z>\n";
+		output << "    </coordinates></vertex>\n";
 	}
-	output << "   </vertices>\r\n";
-	output << "   <volume>\r\n";
+	output << "   </vertices>\n";
+	output << "   <volume>\n";
 	for (size_t i = 0; i < triangles.size(); i++) {
 		triangle t = triangles[i];
-		output << "    <triangle>\r\n";
-		output << "     <v1>" << find_index( vertices, t.vs1 ) << "</v1>\r\n";
-		output << "     <v2>" << find_index( vertices, t.vs2 ) << "</v2>\r\n";
-		output << "     <v3>" << find_index( vertices, t.vs3 ) << "</v3>\r\n";
-		output << "    </triangle>\r\n";
+		output << "    <triangle>\n";
+		output << "     <v1>" << find_index( vertices, t.vs1 ) << "</v1>\n";
+		output << "     <v2>" << find_index( vertices, t.vs2 ) << "</v2>\n";
+		output << "     <v3>" << find_index( vertices, t.vs3 ) << "</v3>\n";
+		output << "    </triangle>\n";
 	}
-	output << "   </volume>\r\n";
-	output << "  </mesh>\r\n"
-		<< " </object>\r\n"
-		<< "</amf>\r\n";
+	output << "   </volume>\n";
+	output << "  </mesh>\n"
+		<< " </object>\n"
+		<< "</amf>\n";
 	setlocale(LC_NUMERIC, ""); // Set default locale
 }
 
 void export_obj(const class PolySet &ps, std::ostream &output)
 {
 	output << "obj test PS.";
-	output << "\r\n";
+	output << "\n";
 }
 
 void export_obj(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
