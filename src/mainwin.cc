@@ -348,6 +348,7 @@ MainWindow::MainWindow(const QString &filename)
 	connect(this->designActionExportSTL, SIGNAL(triggered()), this, SLOT(actionExportSTL()));
 	connect(this->designActionExportOFF, SIGNAL(triggered()), this, SLOT(actionExportOFF()));
 	connect(this->designActionExportAMF, SIGNAL(triggered()), this, SLOT(actionExportAMF()));
+	connect(this->designActionExportOBJ, SIGNAL(triggered()), this, SLOT(actionExportOBJ()));
 	connect(this->designActionExportDXF, SIGNAL(triggered()), this, SLOT(actionExportDXF()));
 	connect(this->designActionExportSVG, SIGNAL(triggered()), this, SLOT(actionExportSVG()));
 	connect(this->designActionExportCSG, SIGNAL(triggered()), this, SLOT(actionExportCSG()));
@@ -1966,6 +1967,7 @@ void MainWindow::actionExport(export_type_e, QString, QString)
 	case EXPORT_TYPE_STL: format = OPENSCAD_STL; break;
 	case EXPORT_TYPE_OFF: format = OPENSCAD_OFF; break;
 	case EXPORT_TYPE_AMF: format = OPENSCAD_AMF; break;
+	case EXPORT_TYPE_OBJ: format = OPENSCAD_OBJ; break;
 	default:
 		assert(false && "Unknown export type");
 		break;
