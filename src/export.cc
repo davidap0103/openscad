@@ -41,10 +41,12 @@
 #include "cgal.h"
 #include "cgalutils.h"
 
-struct triangle {
-    std::string vs1;
-    std::string vs2;
-    std::string vs3;
+typedef std::string ascii_coord; // "5 12 13"  x=5 y=12 z=13
+typedef std::vector<std::string> ascii_face; // {"3 4 5","5 12 13","0 0 0"}
+struct ascii_triangle {
+    ascii_coord vs1;
+    ascii_coord vs2;
+    ascii_coord vs3;
 };
 
 void exportFile(const class Geometry *root_geom, std::ostream &output, FileFormat format)
@@ -388,17 +390,30 @@ void NefPoly_to_ASCII_Triangles( const CGAL_Nef_polyhedron &root_N, std::vector<
 	CGAL::set_error_behaviour(old_behaviour);
 }
 
-// Convert PolySet to sequence of ASCII coordinate vertexes and triangles
-void PolySet_to_ASCII_Triangles( const PolySet &ps, std::vector<std::string> &vertices, std::vector<triangle> &triangles ) {
+/* Convert PolySet to sequence of ASCII coordinate vertexes and faces */
+void PolySet_to_ASCII_Faces( const PolySet &ps, std::vector<std::string> &vertices, std::vector<ascii_face> &faces ) {
+	vertices.clear();
+	faces.clear();
+	std::map<ascii_coord,int> vertmap;
 	for (size_t i = 0; i < ps.polygons.size(); i++) {
-		const PolySet::Polygon *poly = &ps.polygons[i];
+		const Polygon *poly = ps.polygons[i];
+		ascii_face face;
+		std::map<ascii_coord,int> dup_detect;
 		for (size_t j = 0; j < poly->size(); j++) {
 			Vector3d v = poly->at(j);
 			std::stringstream stream;
 			stream << v.transpose();
 			std::string coord3d( stream.str() );
-			if (std::find(vertices.begin(), vertices.end(), coord3d) == vertices.end())
+			if (vertmap.count(coord3d)==0) {
+				vertmap[coord3d] = vertices.size();
 				vertices.push_back( coord3d );
+			}
+			dup_detect[coord3d] = 1;
+			face.push_back( coord3d );
+		}
+		if ( dup_detect.size() == poly->size() ) {
+			// polygon face doesn't contain duplicate points
+			faces.push_back( face );
 		}
 	}
 }
@@ -493,8 +508,11 @@ void export_obj(const class PolySet &ps, std::ostream &output)
 	std::vector<std::string> vertices;
 	std::vector<triangle> triangles;
 	setlocale(LC_NUMERIC, "C"); // Ensure radix is . (not ,) in output
+
 	PolySet_to_ASCII_Triangles( ps, vertices, triangles );
+
 	ASCII_Triangles_to_obj( vertices, triangles, output );
+
 	setlocale(LC_NUMERIC, ""); // Set default locale
 }
 
@@ -508,8 +526,11 @@ void export_obj(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 	std::vector<std::string> vertices;
 	std::vector<triangle> triangles;
 	setlocale(LC_NUMERIC, "C"); // Ensure radix is . (not ,) in output
+
 	NefPoly_to_ASCII_Triangles( *root_N, vertices, triangles );
+
 	ASCII_Triangles_to_obj( vertices, triangles, output );
+
 	setlocale(LC_NUMERIC, ""); // Set default locale
 }
 
