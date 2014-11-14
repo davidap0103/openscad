@@ -166,7 +166,7 @@ void PolySet_to_ASCII_Faces( const PolySet &ps, std::vector<std::string> &vertic
 
 // given a list of ASCII decimal 3d coordinates, find the given coordinate.
 // Example: find '0.1 3.4 1.2' in '{{0,2,1},{1,2,2},{0.1,3.4,1.2}}' returns 2.
-size_t find_index( std::vector<std::string> &vertices, std::string tofind ) {
+size_t find_index( std::vector<ascii_vert> &vertices, ascii_vert tofind ) {
 		return std::distance(vertices.begin(), std::find(vertices.begin(), vertices.end(), tofind));
 }
 
@@ -235,6 +235,12 @@ void CGALPolyhedron_to_ASCII_Triangles( const CGAL_Polyhedron &P, std::vector<as
 
 void NefPoly_to_ASCII_Triangles( const CGAL_Nef_polyhedron &root_N, std::vector<ascii_vert> &vertices, std::vector<ascii_face> &faces )
 {
+	// since conversion to Polyhedron can fail, we test here first.
+	if (!root_N.p3->is_simple()) {
+		PRINT("Object isn't a valid 2-manifold! Modify your design.");
+		return;
+	}
+
 	CGAL::Failure_behaviour old_behaviour = CGAL::set_error_behaviour(CGAL::THROW_EXCEPTION);
 	try {
 		CGAL_Polyhedron P;
@@ -400,33 +406,56 @@ void export_stl(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 	}
 }
 
+void ASCII_Faces_to_off( std::vector<ascii_vert> &vertices, std::vector<ascii_face> &faces, std::ostream &output ) {
+	int numedges = 0; // ok to fake this.
+	output << "OFF " << vertices.size() << " " << faces.size() << " " << numedges << "\n";
+	for (size_t i = 0; i < vertices.size(); i++) {
+		std::string x,y,z;
+		std::istringstream stream(vertices[i]);
+		if (!(stream >> x >> y >> z)) return;
+		output << x << " " << y << " " << z << "\n";
+	}
+	for (size_t i = 0; i < faces.size(); i++) {
+		ascii_face face = faces[i];
+		output << face.size() << " ";
+		for (size_t j = 0; j < face.size(); j++) {
+			output << find_index( vertices, face[j] ) << " ";
+		}
+		output << "\n";
+	}
+}
+
 void export_off(const class PolySet &ps, std::ostream &output)
 {
-	// FIXME: Implement this without creating a Nef polyhedron
-	CGAL_Nef_polyhedron *N = CGALUtils::createNefPolyhedronFromGeometry(ps);
-	export_off(N, output);
-	delete N;
+	std::vector<std::string> vertices;
+	std::vector<ascii_face> faces;
+	setlocale(LC_NUMERIC, "C"); // Ensure radix is . (not ,) in output
+
+	PolySet_to_ASCII_Faces( ps, vertices, faces );
+
+	ASCII_Faces_to_off( vertices, faces, output );
+
+	setlocale(LC_NUMERIC, ""); // Set default locale
+//	CGAL_Nef_polyhedron *N = CGALUtils::createNefPolyhedronFromGeometry(ps);
+//	export_off(N, output);
+//	delete N;
 }
 
 void export_off(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 {
-	if (!root_N->p3->is_simple()) {
-		PRINT("Object isn't a valid 2-manifold! Modify your design.");
-		return;
-	}
-	CGAL::Failure_behaviour old_behaviour = CGAL::set_error_behaviour(CGAL::THROW_EXCEPTION);
-	try {
-		CGAL_Polyhedron P;
-		root_N->p3->convert_to_Polyhedron(P);
-		output << P;
-	}
-	catch (const CGAL::Assertion_exception &e) {
-		PRINTB("CGAL error in CGAL_Nef_polyhedron3::convert_to_Polyhedron(): %s", e.what());
-	}
-	CGAL::set_error_behaviour(old_behaviour);
+	setlocale(LC_NUMERIC, "C"); // Ensure radix is . (not ,) in output
+
+	std::vector<ascii_vert> vertices;
+	std::vector<ascii_face> triangles;
+
+	NefPoly_to_ASCII_Triangles( *root_N, vertices, triangles );
+
+	ASCII_Faces_to_off( vertices, triangles, output );
+
+	setlocale(LC_NUMERIC, ""); // Set default locale
 }
 
-void ASCII_Triangles_to_amf( std::vector<ascii_vert> &vertices, std:vector<ascii_face> &triangles, output )
+void ASCII_Triangles_to_amf( std::vector<ascii_vert> &vertices, std::vector<ascii_face> &triangles, std::ostream &output )
 {
 	output << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
 		<< "<amf unit=\"millimeter\">\n"
@@ -473,9 +502,11 @@ void export_amf(const class PolySet &ps, std::ostream &output)
 	std::vector<ascii_vert> vertices;
 	std::vector<ascii_face> triangles;
 
-	PolySet_to_ASCII_Faces( ps, vertices, triangles );
+	PRINTDB("%s",triangulated.dump());
 
-	ASCII_Triangles_to_amf( vertices, faces, output );
+	PolySet_to_ASCII_Faces( triangulated, vertices, triangles );
+
+	ASCII_Triangles_to_amf( vertices, triangles, output );
 	// FIXME: Implement this without creating a Nef polyhedron
 	//CGAL_Nef_polyhedron *N = CGALUtils::createNefPolyhedronFromGeometry(ps);
 //	export_amf(N, output);
