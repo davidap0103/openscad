@@ -402,7 +402,7 @@ void PolySet_to_ASCII_Faces( const PolySet &ps, std::vector<std::string> &vertic
 	faces.clear();
 	std::map<ascii_vert,int> vertmap;
 	for (size_t i = 0; i < ps.polygons.size(); i++) {
-		const Polygon *poly = ps.polygons[i];
+		const PolySet::Polygon *poly = &ps.polygons[i];
 		ascii_face face;
 		std::map<ascii_vert,int> dup_detect;
 		for (size_t j = 0; j < poly->size(); j++) {
@@ -444,7 +444,7 @@ void export_amf(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 	setlocale(LC_NUMERIC, "C"); // Ensure radix is . (not ,) in output
 
 	std::vector<std::string> vertices;
-	std::vector<triangle> triangles;
+	std::vector<ascii_face> triangles;
 
 	NefPoly_to_ASCII_Triangles( *root_N, vertices, triangles );
 
@@ -471,11 +471,11 @@ void export_amf(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 	output << "   </vertices>\n";
 	output << "   <volume>\n";
 	for (size_t i = 0; i < triangles.size(); i++) {
-		triangle t = triangles[i];
+		ascii_face t = triangles[i];
 		output << "    <triangle>\n";
-		output << "     <v1>" << find_index( vertices, t.vs1 ) << "</v1>\n";
-		output << "     <v2>" << find_index( vertices, t.vs2 ) << "</v2>\n";
-		output << "     <v3>" << find_index( vertices, t.vs3 ) << "</v3>\n";
+		output << "     <v1>" << find_index( vertices, t[0] ) << "</v1>\n";
+		output << "     <v2>" << find_index( vertices, t[1] ) << "</v2>\n";
+		output << "     <v3>" << find_index( vertices, t[2] ) << "</v3>\n";
 		output << "    </triangle>\n";
 	}
 	output << "   </volume>\n";
@@ -500,7 +500,7 @@ void ASCII_Faces_to_obj( std::vector<std::string> &vertices, std::vector<ascii_f
 		ascii_face face = faces[i];
 		output << "f ";
 		for (size_t j = 0; j < face.size(); j++) {
-			output << find_index( vertices, face[j] ) << " ";
+			output << 1 + find_index( vertices, face[j] ) << " ";
 		}
 		output << "\n";
 	}
