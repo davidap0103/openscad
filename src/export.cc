@@ -135,6 +135,117 @@ void exportFileByName(const class Geometry *root_geom, FileFormat format,
 	}
 }
 
+/* Convert PolySet to sequence of ASCII coordinate vertexes and faces.
+  Can produce faces with >3 points.  */
+void PolySet_to_ASCII_Faces( const PolySet &ps, std::vector<std::string> &vertices, std::vector<ascii_face> &faces ) {
+	vertices.clear();
+	faces.clear();
+	std::map<ascii_vert,int> vertmap;
+	for (size_t i = 0; i < ps.polygons.size(); i++) {
+		const PolySet::Polygon *poly = &ps.polygons[i];
+		ascii_face face;
+		std::map<ascii_vert,int> dup_detect;
+		for (size_t j = 0; j < poly->size(); j++) {
+			Vector3d v = poly->at(j);
+			std::stringstream stream;
+			stream << v.transpose();
+			std::string coord3d( stream.str() );
+			if (vertmap.count(coord3d)==0) {
+				vertmap[coord3d] = vertices.size();
+				vertices.push_back( coord3d );
+			}
+			dup_detect[coord3d] = 1;
+			face.push_back( coord3d );
+		}
+		if ( dup_detect.size() == poly->size() ) {
+			// polygon face doesn't contain duplicate points
+			faces.push_back( face );
+		}
+	}
+}
+
+// given a list of ASCII decimal 3d coordinates, find the given coordinate.
+// Example: find '0.1 3.4 1.2' in '{{0,2,1},{1,2,2},{0.1,3.4,1.2}}' returns 2.
+size_t find_index( std::vector<std::string> &vertices, std::string tofind ) {
+		return std::distance(vertices.begin(), std::find(vertices.begin(), vertices.end(), tofind));
+}
+
+/*!
+   Converts the given 3d CGAL Nef Polyhedron to ASCII coordinate triangles.
+   Only produces faces with 3 points. As of writing, this works because
+   it converts directly to CGAL Polyhedron, which makes all faces triangular.
+   (see also: ascii_vert typedef)
+*/
+void CGALPolyhedron_to_ASCII_Triangles( const CGAL_Polyhedron &P, std::vector<ascii_vert> &vertices, std::vector<ascii_face> &faces )
+{
+	typedef CGAL_Polyhedron::Vertex Vertex;
+	typedef CGAL_Polyhedron::Vertex_const_iterator VCI;
+	typedef CGAL_Polyhedron::Facet_const_iterator FCI;
+	typedef CGAL_Polyhedron::Halfedge_around_facet_const_circulator HFCC;
+
+	for (FCI fi = P.facets_begin(); fi != P.facets_end(); ++fi) {
+		HFCC hc = fi->facet_begin();
+		HFCC hc_end = hc;
+		Vertex v1, v2, v3;
+		v1 = *VCI((hc++)->vertex());
+		v3 = *VCI((hc++)->vertex());
+		do {
+			v2 = v3;
+			v3 = *VCI((hc++)->vertex());
+			double x1 = CGAL::to_double(v1.point().x());
+			double y1 = CGAL::to_double(v1.point().y());
+			double z1 = CGAL::to_double(v1.point().z());
+			double x2 = CGAL::to_double(v2.point().x());
+			double y2 = CGAL::to_double(v2.point().y());
+			double z2 = CGAL::to_double(v2.point().z());
+			double x3 = CGAL::to_double(v3.point().x());
+			double y3 = CGAL::to_double(v3.point().y());
+			double z3 = CGAL::to_double(v3.point().z());
+			std::stringstream stream;
+			stream << x1 << " " << y1 << " " << z1;
+			std::string vs1 = stream.str();
+			stream.str("");
+			stream << x2 << " " << y2 << " " << z2;
+			std::string vs2 = stream.str();
+			stream.str("");
+			stream << x3 << " " << y3 << " " << z3;
+			std::string vs3 = stream.str();
+			if (std::find(vertices.begin(), vertices.end(), vs1) == vertices.end())
+				vertices.push_back(vs1);
+			if (std::find(vertices.begin(), vertices.end(), vs2) == vertices.end())
+				vertices.push_back(vs2);
+			if (std::find(vertices.begin(), vertices.end(), vs3) == vertices.end())
+				vertices.push_back(vs3);
+
+			if (vs1 != vs2 && vs1 != vs3 && vs2 != vs3) {
+				// The above condition ensures that there are 3 distinct vertices, but
+				// they may be collinear. If they are, the unit normal is meaningless
+				// so the default value of "1 0 0" can be used. If the vertices are not
+				// collinear then the unit normal must be calculated from the
+				// components.
+				ascii_face tri;
+				tri.push_back(vs1);
+				tri.push_back(vs2);
+				tri.push_back(vs3);
+				faces.push_back(tri);
+			}
+		} while (hc != hc_end); // for each triangle in the Facet
+	} // for each Polyhedron Facet
+}
+
+void NefPoly_to_ASCII_Triangles( const CGAL_Nef_polyhedron &root_N, std::vector<ascii_vert> &vertices, std::vector<ascii_face> &faces )
+{
+	CGAL::Failure_behaviour old_behaviour = CGAL::set_error_behaviour(CGAL::THROW_EXCEPTION);
+	try {
+		CGAL_Polyhedron P;
+		root_N.p3->convert_to_Polyhedron(P);
+		CGALPolyhedron_to_ASCII_Triangles( P, vertices, faces );
+	} catch (CGAL::Assertion_exception e) {
+		PRINTB("CGAL error in CGAL_Nef_polyhedron3::convert_to_Polyhedron(): %s", e.what());
+	}
+	CGAL::set_error_behaviour(old_behaviour);
+}
+
 void export_stl(const PolySet &ps, std::ostream &output)
 {
 	PolySet triangulated(3);
@@ -249,8 +360,8 @@ static void export_stl(const CGAL_Polyhedron &P, std::ostream &output)
 }
 
 /*!
-	Saves the current 3D CGAL Nef polyhedron as STL to the given file.
-	The file must be open.
+	Saves the current 3D CGAL Nef polyhedron as STL to the given stream.
+	The stream must be open.
  */
 void export_stl(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 {
@@ -315,139 +426,8 @@ void export_off(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 	CGAL::set_error_behaviour(old_behaviour);
 }
 
-void export_amf(const class PolySet &ps, std::ostream &output)
+void ASCII_Triangles_to_amf( std::vector<ascii_vert> &vertices, std:vector<ascii_face> &triangles, output )
 {
-	// FIXME: Implement this without creating a Nef polyhedron
-	CGAL_Nef_polyhedron *N = CGALUtils::createNefPolyhedronFromGeometry(ps);
-	export_amf(N, output);
-	delete N;
-}
-
-/*!
-   Converts the given 3d CGAL Nef Polyhedron to ASCII coordinate triangles.
-   Only produces faces with 3 points. As of writing, this works because
-   it converts directly to CGAL Polyhedron, which makes all faces triangular.
-   (see also: ascii_vert typedef)
-*/
-void NefPoly_to_ASCII_Triangles( const CGAL_Nef_polyhedron &root_N, std::vector<ascii_vert> &vertices, std::vector<ascii_face> &faces )
-{
-	CGAL::Failure_behaviour old_behaviour = CGAL::set_error_behaviour(CGAL::THROW_EXCEPTION);
-	try {
-		CGAL_Polyhedron P;
-		root_N.p3->convert_to_Polyhedron(P);
-
-		typedef CGAL_Polyhedron::Vertex Vertex;
-		typedef CGAL_Polyhedron::Vertex_const_iterator VCI;
-		typedef CGAL_Polyhedron::Facet_const_iterator FCI;
-		typedef CGAL_Polyhedron::Halfedge_around_facet_const_circulator HFCC;
-
-		for (FCI fi = P.facets_begin(); fi != P.facets_end(); ++fi) {
-			HFCC hc = fi->facet_begin();
-			HFCC hc_end = hc;
-			Vertex v1, v2, v3;
-			v1 = *VCI((hc++)->vertex());
-			v3 = *VCI((hc++)->vertex());
-			do {
-				v2 = v3;
-				v3 = *VCI((hc++)->vertex());
-				double x1 = CGAL::to_double(v1.point().x());
-				double y1 = CGAL::to_double(v1.point().y());
-				double z1 = CGAL::to_double(v1.point().z());
-				double x2 = CGAL::to_double(v2.point().x());
-				double y2 = CGAL::to_double(v2.point().y());
-				double z2 = CGAL::to_double(v2.point().z());
-				double x3 = CGAL::to_double(v3.point().x());
-				double y3 = CGAL::to_double(v3.point().y());
-				double z3 = CGAL::to_double(v3.point().z());
-				std::stringstream stream;
-				stream << x1 << " " << y1 << " " << z1;
-				std::string vs1 = stream.str();
-				stream.str("");
-				stream << x2 << " " << y2 << " " << z2;
-				std::string vs2 = stream.str();
-				stream.str("");
-				stream << x3 << " " << y3 << " " << z3;
-				std::string vs3 = stream.str();
-				if (std::find(vertices.begin(), vertices.end(), vs1) == vertices.end())
-					vertices.push_back(vs1);
-				if (std::find(vertices.begin(), vertices.end(), vs2) == vertices.end())
-					vertices.push_back(vs2);
-				if (std::find(vertices.begin(), vertices.end(), vs3) == vertices.end())
-					vertices.push_back(vs3);
-
-				if (vs1 != vs2 && vs1 != vs3 && vs2 != vs3) {
-					// The above condition ensures that there are 3 distinct vertices, but
-					// they may be collinear. If they are, the unit normal is meaningless
-					// so the default value of "1 0 0" can be used. If the vertices are not
-					// collinear then the unit normal must be calculated from the
-					// components.
-					ascii_face tri;
-					tri.push_back(vs1);
-					tri.push_back(vs2);
-					tri.push_back(vs3);
-					faces.push_back(tri);
-				}
-			} while (hc != hc_end);
-		}
-	} catch (CGAL::Assertion_exception e) {
-		PRINTB("CGAL error in CGAL_Nef_polyhedron3::convert_to_Polyhedron(): %s", e.what());
-	}
-	CGAL::set_error_behaviour(old_behaviour);
-}
-
-/* Convert PolySet to sequence of ASCII coordinate vertexes and faces.
-  Can produce faces with >3 points.  */
-void PolySet_to_ASCII_Faces( const PolySet &ps, std::vector<std::string> &vertices, std::vector<ascii_face> &faces ) {
-	vertices.clear();
-	faces.clear();
-	std::map<ascii_vert,int> vertmap;
-	for (size_t i = 0; i < ps.polygons.size(); i++) {
-		const PolySet::Polygon *poly = &ps.polygons[i];
-		ascii_face face;
-		std::map<ascii_vert,int> dup_detect;
-		for (size_t j = 0; j < poly->size(); j++) {
-			Vector3d v = poly->at(j);
-			std::stringstream stream;
-			stream << v.transpose();
-			std::string coord3d( stream.str() );
-			if (vertmap.count(coord3d)==0) {
-				vertmap[coord3d] = vertices.size();
-				vertices.push_back( coord3d );
-			}
-			dup_detect[coord3d] = 1;
-			face.push_back( coord3d );
-		}
-		if ( dup_detect.size() == poly->size() ) {
-			// polygon face doesn't contain duplicate points
-			faces.push_back( face );
-		}
-	}
-}
-
-// given a list of ASCII decimal 3d coordinates, find the given coordinate.
-// Example: find '0.1 3.4 1.2' in '{{0,2,1},{1,2,2},{0.1,3.4,1.2}}' returns 2.
-size_t find_index( std::vector<std::string> &vertices, std::string tofind ) {
-		return std::distance(vertices.begin(), std::find(vertices.begin(), vertices.end(), tofind));
-}
-
-/*!
-    Saves the current 3D CGAL Nef polyhedron as AMF to the given file.
-    The stream (usually a file) must be open.
- */
-void export_amf(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
-{
-	if (!root_N->p3->is_simple()) {
-		PRINT("Object isn't a valid 2-manifold! Modify your design.");
-		return;
-	}
-
-	setlocale(LC_NUMERIC, "C"); // Ensure radix is . (not ,) in output
-
-	std::vector<std::string> vertices;
-	std::vector<ascii_face> triangles;
-
-	NefPoly_to_ASCII_Triangles( *root_N, vertices, triangles );
-
 	output << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
 		<< "<amf unit=\"millimeter\">\n"
 		<< " <metadata type=\"producer\">OpenSCAD " << QUOTED(OPENSCAD_VERSION)
@@ -482,10 +462,50 @@ void export_amf(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 	output << "  </mesh>\n"
 		<< " </object>\n"
 		<< "</amf>\n";
+}
+
+void export_amf(const class PolySet &ps, std::ostream &output)
+{
+	// amf only allows triangles, so convert to triangles first.
+	PolySet triangulated(3);
+	PolysetUtils::tessellate_faces(ps, triangulated);
+
+	std::vector<ascii_vert> vertices;
+	std::vector<ascii_face> triangles;
+
+	PolySet_to_ASCII_Faces( ps, vertices, triangles );
+
+	ASCII_Triangles_to_amf( vertices, faces, output );
+	// FIXME: Implement this without creating a Nef polyhedron
+	//CGAL_Nef_polyhedron *N = CGALUtils::createNefPolyhedronFromGeometry(ps);
+//	export_amf(N, output);
+//	delete N;
+}
+
+/*!
+    Saves the current 3D CGAL Nef polyhedron as AMF to the given file.
+    The stream (usually a file) must be open.
+ */
+void export_amf(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
+{
+	if (!root_N->p3->is_simple()) {
+		PRINT("Object isn't a valid 2-manifold! Modify your design.");
+		return;
+	}
+
+	setlocale(LC_NUMERIC, "C"); // Ensure radix is . (not ,) in output
+
+	std::vector<ascii_vert> vertices;
+	std::vector<ascii_face> triangles;
+
+	NefPoly_to_ASCII_Triangles( *root_N, vertices, triangles );
+
+	ASCII_Triangles_to_amf( vertices, triangles, output );
+
 	setlocale(LC_NUMERIC, ""); // Set default locale
 }
 
-void ASCII_Faces_to_obj( std::vector<std::string> &vertices, std::vector<ascii_face> &faces, std::ostream &output ) {
+void ASCII_Faces_to_obj( std::vector<ascii_vert> &vertices, std::vector<ascii_face> &faces, std::ostream &output ) {
 	output << "# WaveFront *.obj file (generated by OpenSCAD "
 		<< QUOTED(OPENSCAD_VERSION) << ")\n\n"
 		<< "g Object\n";
