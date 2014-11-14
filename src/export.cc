@@ -136,7 +136,7 @@ void exportFileByName(const class Geometry *root_geom, FileFormat format,
 }
 
 /* Convert PolySet to sequence of ASCII coordinate vertexes and faces.
-  Can produce faces with >3 points.  */
+  Can produce faces with more than three points.  */
 void PolySet_to_ASCII_Faces( const PolySet &ps, std::vector<std::string> &vertices, std::vector<ascii_face> &faces ) {
 	vertices.clear();
 	faces.clear();
@@ -164,17 +164,15 @@ void PolySet_to_ASCII_Faces( const PolySet &ps, std::vector<std::string> &vertic
 	}
 }
 
-// given a list of ASCII decimal 3d coordinates, find the given coordinate.
+// given a list of ASCII decimal 3d coordinates, find the given coordinate index
 // Example: find '0.1 3.4 1.2' in '{{0,2,1},{1,2,2},{0.1,3.4,1.2}}' returns 2.
 size_t find_index( std::vector<ascii_vert> &vertices, ascii_vert tofind ) {
 		return std::distance(vertices.begin(), std::find(vertices.begin(), vertices.end(), tofind));
 }
 
 /*!
-   Converts the given 3d CGAL Nef Polyhedron to ASCII coordinate triangles.
-   Only produces faces with 3 points. As of writing, this works because
-   it converts directly to CGAL Polyhedron, which makes all faces triangular.
-   (see also: ascii_vert typedef)
+   Converts the given 3d CGAL Polyhedron (non-nef) to ASCII coordinate triangles.
+   It is assumed the input Polyhedron is all triangle faces.
 */
 void CGALPolyhedron_to_ASCII_Triangles( const CGAL_Polyhedron &P, std::vector<ascii_vert> &vertices, std::vector<ascii_face> &faces )
 {
@@ -233,6 +231,11 @@ void CGALPolyhedron_to_ASCII_Triangles( const CGAL_Polyhedron &P, std::vector<as
 	} // for each Polyhedron Facet
 }
 
+/* Convert CGAL Nef Polyhedron to ASCII coordiante vertexes and triangles.
+   Only produces faces with 3 points. As of writing, this works because
+   it first converts to CGAL Polyhedron (non-nef), which makes all faces
+   triangular. Then it converts to ASCI coordinates.
+*/
 void NefPoly_to_ASCII_Triangles( const CGAL_Nef_polyhedron &root_N, std::vector<ascii_vert> &vertices, std::vector<ascii_face> &faces )
 {
 	// since conversion to Polyhedron can fail, we test here first.
