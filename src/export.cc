@@ -502,8 +502,6 @@ void export_amf(const class PolySet &ps, std::ostream &output)
 	std::vector<ascii_vert> vertices;
 	std::vector<ascii_face> triangles;
 
-	PRINTDB("%s",triangulated.dump());
-
 	PolySet_to_ASCII_Faces( triangulated, vertices, triangles );
 
 	ASCII_Triangles_to_amf( vertices, triangles, output );
