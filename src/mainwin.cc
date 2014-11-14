@@ -1993,6 +1993,11 @@ void MainWindow::actionExportAMF()
 	actionExport(EXPORT_TYPE_AMF, "AMF", ".amf");
 }
 
+void MainWindow::actionExportOBJ()
+{
+	actionExport(EXPORT_TYPE_OBJ, "OBJ", ".obj");
+}
+
 QString MainWindow::get2dExportFilename(QString format, QString extension) {
 	setCurrentOutput();
 

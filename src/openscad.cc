@@ -265,6 +265,7 @@ int cmdline(const char *deps_output_file, const std::string &filename, Camera &c
 	const char *stl_output_file = NULL;
 	const char *off_output_file = NULL;
 	const char *amf_output_file = NULL;
+	const char *obj_output_file = NULL;
 	const char *dxf_output_file = NULL;
 	const char *svg_output_file = NULL;
 	const char *csg_output_file = NULL;
@@ -279,6 +280,7 @@ int cmdline(const char *deps_output_file, const std::string &filename, Camera &c
 	if (suffix == ".stl") stl_output_file = output_file;
 	else if (suffix == ".off") off_output_file = output_file;
 	else if (suffix == ".amf") amf_output_file = output_file;
+	else if (suffix == ".obj") obj_output_file = output_file;
 	else if (suffix == ".dxf") dxf_output_file = output_file;
 	else if (suffix == ".svg") svg_output_file = output_file;
 	else if (suffix == ".csg") csg_output_file = output_file;
@@ -412,6 +414,7 @@ int cmdline(const char *deps_output_file, const std::string &filename, Camera &c
 			if ( stl_output_file ) geom_out = std::string(stl_output_file);
 			else if ( off_output_file ) geom_out = std::string(off_output_file);
 			else if ( amf_output_file ) geom_out = std::string(amf_output_file);
+			else if ( obj_output_file ) geom_out = std::string(obj_output_file);
 			else if ( dxf_output_file ) geom_out = std::string(dxf_output_file);
 			else if ( svg_output_file ) geom_out = std::string(svg_output_file);
 			else if ( png_output_file ) geom_out = std::string(png_output_file);
@@ -439,6 +442,11 @@ int cmdline(const char *deps_output_file, const std::string &filename, Camera &c
 
 		if (amf_output_file) {
 			if (!checkAndExport(root_geom, 3, OPENSCAD_AMF, amf_output_file))
+				return 1;
+		}
+
+		if (obj_output_file) {
+			if (!checkAndExport(root_geom, 3, OPENSCAD_OBJ, obj_output_file))
 				return 1;
 		}
 

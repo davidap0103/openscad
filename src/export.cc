@@ -61,6 +61,9 @@ void exportFile(const class Geometry *root_geom, std::ostream &output, FileForma
 		case OPENSCAD_AMF:
 			export_amf(N, output);
 			break;
+		case OPENSCAD_OBJ:
+			export_obj(N, output);
+			break;
 		case OPENSCAD_DXF:
 			assert(false && "Export Nef polyhedron as DXF not supported");
 			break;
@@ -79,6 +82,9 @@ void exportFile(const class Geometry *root_geom, std::ostream &output, FileForma
 				break;
 			case OPENSCAD_AMF:
 				export_amf(*ps, output);
+				break;
+			case OPENSCAD_OBJ:
+				export_obj(*ps, output);
 				break;
 			default:
 				assert(false && "Unsupported file format");
@@ -315,29 +321,21 @@ void export_amf(const class PolySet &ps, std::ostream &output)
 }
 
 /*!
-    Saves the current 3D CGAL Nef polyhedron as AMF to the given file.
-    The file must be open.
- */
-void export_amf(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
+   Converts the given 3d CGAL Nef Polyhedron to a sequence of vertices and
+   indexes into those vertexes that form triangles. The vertex points
+   are stored as ASCII strings of Base-10 Decimal ( 1.2, 3.4, 41.03, etc )
+*/
+void NefPoly_to_ASCII_Triangles( const CGAL_Nef_polyhedron &root_N, std::vector<std::string> &vertices, std::vector<triangle> &triangles )
 {
-	if (!root_N->p3->is_simple()) {
-		PRINT("Object isn't a valid 2-manifold! Modify your design.");
-		return;
-	}
 	CGAL::Failure_behaviour old_behaviour = CGAL::set_error_behaviour(CGAL::THROW_EXCEPTION);
 	try {
 		CGAL_Polyhedron P;
-		root_N->p3->convert_to_Polyhedron(P);
+		root_N.p3->convert_to_Polyhedron(P);
 
 		typedef CGAL_Polyhedron::Vertex Vertex;
 		typedef CGAL_Polyhedron::Vertex_const_iterator VCI;
 		typedef CGAL_Polyhedron::Facet_const_iterator FCI;
 		typedef CGAL_Polyhedron::Halfedge_around_facet_const_circulator HFCC;
-
-		setlocale(LC_NUMERIC, "C"); // Ensure radix is . (not ,) in output
-
-		std::vector<std::string> vertices;
-		std::vector<triangle> triangles;
 
 		for (FCI fi = P.facets_begin(); fi != P.facets_end(); ++fi) {
 			HFCC hc = fi->facet_begin();
@@ -384,52 +382,92 @@ void export_amf(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 				}
 			} while (hc != hc_end);
 		}
-
-		output << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
-			<< "<amf unit=\"millimeter\">\r\n"
-			<< " <metadata type=\"producer\">OpenSCAD " << QUOTED(OPENSCAD_VERSION)
-#ifdef OPENSCAD_COMMIT
-			<< " (git " << QUOTED(OPENSCAD_COMMIT) << ")"
-#endif
-			<< "</metadata>\r\n"
-			<< " <object id=\"0\">\r\n"
-			<< "  <mesh>\r\n";
-		output << "   <vertices>\r\n";
-		for (size_t i = 0; i < vertices.size(); i++) {
-			std::string s = vertices[i];
-			output << "    <vertex><coordinates>\r\n";
-			char* chrs = new char[s.length() + 1];
-			strcpy(chrs, s.c_str());
-			std::string coords = strtok(chrs, " ");
-			output << "     <x>" << coords << "</x>\r\n";
-			coords = strtok(NULL, " ");
-			output << "     <y>" << coords << "</y>\r\n";
-			coords = strtok(NULL, " ");
-			output << "     <z>" << coords << "</z>\r\n";
-			output << "    </coordinates></vertex>\r\n";
-		}
-		output << "   </vertices>\r\n";
-		output << "   <volume>\r\n";
-		for (size_t i = 0; i < triangles.size(); i++) {
-			triangle t = triangles[i];
-			output << "    <triangle>\r\n";
-			size_t index;
-			index = std::distance(vertices.begin(), std::find(vertices.begin(), vertices.end(), t.vs1));
-			output << "     <v1>" << index << "</v1>\r\n";
-			index = std::distance(vertices.begin(), std::find(vertices.begin(), vertices.end(), t.vs2));
-			output << "     <v2>" << index << "</v2>\r\n";
-			index = std::distance(vertices.begin(), std::find(vertices.begin(), vertices.end(), t.vs3));
-			output << "     <v3>" << index << "</v3>\r\n";
-			output << "    </triangle>\r\n";
-		}
-		output << "   </volume>\r\n";
-		output << "  </mesh>\r\n"
-			<< " </object>\r\n"
-			<< "</amf>\r\n";
 	} catch (CGAL::Assertion_exception e) {
 		PRINTB("CGAL error in CGAL_Nef_polyhedron3::convert_to_Polyhedron(): %s", e.what());
 	}
 	CGAL::set_error_behaviour(old_behaviour);
+}
+
+/*!
+    Saves the current 3D CGAL Nef polyhedron as AMF to the given file.
+    The stream (usually a file) must be open.
+ */
+void export_amf(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
+{
+	if (!root_N->p3->is_simple()) {
+		PRINT("Object isn't a valid 2-manifold! Modify your design.");
+		return;
+	}
+
+	setlocale(LC_NUMERIC, "C"); // Ensure radix is . (not ,) in output
+
+	std::vector<std::string> vertices;
+	std::vector<triangle> triangles;
+
+	NefPoly_to_ASCII_Triangles( *root_N, vertices, triangles );
+
+	output << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
+		<< "<amf unit=\"millimeter\">\r\n"
+		<< " <metadata type=\"producer\">OpenSCAD " << QUOTED(OPENSCAD_VERSION)
+#ifdef OPENSCAD_COMMIT
+		<< " (git " << QUOTED(OPENSCAD_COMMIT) << ")"
+#endif
+		<< "</metadata>\r\n"
+		<< " <object id=\"0\">\r\n"
+		<< "  <mesh>\r\n";
+	output << "   <vertices>\r\n";
+	for (size_t i = 0; i < vertices.size(); i++) {
+		std::string x,y,z;
+		if (!(std::istringstream(vertices[i]) >> x >> y >> z)) return;
+		output << "    <vertex><coordinates>\r\n";
+		output << "     <x>" << x << "</x>\r\n";
+		output << "     <y>" << y << "</y>\r\n";
+		output << "     <z>" << z << "</z>\r\n";
+		output << "    </coordinates></vertex>\r\n";
+	}
+	output << "   </vertices>\r\n";
+	output << "   <volume>\r\n";
+	for (size_t i = 0; i < triangles.size(); i++) {
+		triangle t = triangles[i];
+		output << "    <triangle>\r\n";
+		size_t index;
+		index = std::distance(vertices.begin(), std::find(vertices.begin(), vertices.end(), t.vs1));
+		output << "     <v1>" << index << "</v1>\r\n";
+		index = std::distance(vertices.begin(), std::find(vertices.begin(), vertices.end(), t.vs2));
+		output << "     <v2>" << index << "</v2>\r\n";
+		index = std::distance(vertices.begin(), std::find(vertices.begin(), vertices.end(), t.vs3));
+		output << "     <v3>" << index << "</v3>\r\n";
+		output << "    </triangle>\r\n";
+	}
+	output << "   </volume>\r\n";
+	output << "  </mesh>\r\n"
+		<< " </object>\r\n"
+		<< "</amf>\r\n";
+	setlocale(LC_NUMERIC, ""); // Set default locale
+}
+
+void export_obj(const class PolySet &ps, std::ostream &output)
+{
+	output << "obj test PS.";
+	output << "\r\n";
+}
+
+void export_obj(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
+{
+	if (!root_N->p3->is_simple()) {
+		PRINT("Object isn't a valid 2-manifold! Modify your design.");
+		return;
+	}
+
+	setlocale(LC_NUMERIC, "C"); // Ensure radix is . (not ,) in output
+
+	std::vector<std::string> vertices;
+	std::vector<triangle> triangles;
+
+	NefPoly_to_ASCII_Triangles( *root_N, vertices, triangles );
+
+	output << "obj test NEF.";
+	output << "\r\n";
 	setlocale(LC_NUMERIC, ""); // Set default locale
 }
 

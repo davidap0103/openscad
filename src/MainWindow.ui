@@ -194,6 +194,7 @@
      <addaction name="designActionExportSTL"/>
      <addaction name="designActionExportOFF"/>
      <addaction name="designActionExportAMF"/>
+     <addaction name="designActionExportOBJ"/>
      <addaction name="designActionExportDXF"/>
      <addaction name="designActionExportSVG"/>
      <addaction name="designActionExportCSG"/>
@@ -1080,6 +1081,11 @@
   <action name="designActionExportAMF">
    <property name="text">
     <string>Export as AMF...</string>
+   </property>
+  </action>
+  <action name="designActionExportOBJ">
+   <property name="text">
+    <string>Export as OBJ...</string>
    </property>
   </action>
   <action name="viewActionZoomIn">
