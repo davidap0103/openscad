@@ -133,7 +133,7 @@ void export_stl(const PolySet &ps, std::ostream &output)
 
 	setlocale(LC_NUMERIC, "C"); // Ensure radix is . (not ,) in output
 	output << "solid OpenSCAD_Model\n";
-	BOOST_FOREACH(const PolySet::Polygon &p, triangulated.polygons) {
+	BOOST_FOREACH(const Polygon &p, triangulated.polygons) {
 		assert(p.size() == 3); // STL only allows triangles
 		std::stringstream stream;
 		stream << p[0][0] << " " << p[0][1] << " " << p[0][2];
@@ -468,10 +468,10 @@ void export_dxf(const Polygon2d &poly, std::ostream &output)
 						 << "0\n"
 						 << " 10\n"
 						 << x1 << "\n"
-						 << " 11\n"
-						 << x2 << "\n"
 						 << " 20\n"
 						 << y1 << "\n"
+						 << " 11\n"
+						 << x2 << "\n"
 						 << " 21\n"
 						 << y2 << "\n";
 		}

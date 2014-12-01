@@ -308,6 +308,7 @@ src/FontCache.h \
            src/system-gl.h \
            src/CsgInfo.h \
            \
+           src/Dock.h \
            src/AutoUpdater.h \
            src/launchingscreen.h \
            src/legacyeditor.h \
@@ -413,8 +414,9 @@ SOURCES += \
            src/openscad.cc \
            src/mainwin.cc \
            src/UIUtils.cc \
+           src/Dock.cc \
            src/FontListDialog.cc \
-           src/launchingscreen.cpp \
+           src/launchingscreen.cc \
            src/legacyeditor.cc \
            src/LibraryInfoDialog.cc
 
@@ -454,6 +456,7 @@ HEADERS += src/cgal.h \
 
 SOURCES += src/cgalutils.cc \
            src/cgalutils-tess.cc \
+           src/cgalutils-tess-old.cc \
            src/CGALCache.cc \
            src/CGALRenderer.cc \
            src/CGAL_Nef_polyhedron.cc \
@@ -493,6 +496,10 @@ INSTALLS += libraries
 fonts.path = $$PREFIX/share/openscad/fonts/
 fonts.files = fonts/*
 INSTALLS += fonts
+
+colorschemes.path = $$PREFIX/share/openscad/color-schemes/
+colorschemes.files = color-schemes/*
+INSTALLS += colorschemes
 
 applications.path = $$PREFIX/share/applications
 applications.files = icons/openscad.desktop
