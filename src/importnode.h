@@ -27,6 +27,7 @@ public:
 	std::string layername;
 	int convexity;
 	double fn, fs, fa;
+        double width, height;
 	double origin_x, origin_y, scale;
 	virtual class Geometry *createGeometry() const;
 };
