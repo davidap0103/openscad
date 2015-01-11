@@ -177,11 +177,14 @@ MainWindow::MainWindow(const QString &filename)
 
 	editorDockTitleWidget = new QWidget();
         consoleDockTitleWidget = new QWidget();
+        parameterDockTitleWidget = new QWidget();
 
 	this->editorDock->setConfigKey("view/hideEditor");
 	this->editorDock->setAction(this->viewActionHideEditor);
 	this->consoleDock->setConfigKey("view/hideConsole");
 	this->consoleDock->setAction(this->viewActionHideConsole);
+	this->parameterDock->setConfigKey("view/hideParameters");
+	this->parameterDock->setAction(this->viewActionHideParameters);
 
 	this->versionLabel = NULL; // must be initialized before calling updateStatusBar()
 	updateStatusBar(NULL);
@@ -402,6 +405,7 @@ MainWindow::MainWindow(const QString &filename)
 	connect(this->viewActionHideToolBars, SIGNAL(triggered()), this, SLOT(hideToolbars()));
 	connect(this->viewActionHideEditor, SIGNAL(triggered()), this, SLOT(hideEditor()));
 	connect(this->viewActionHideConsole, SIGNAL(triggered()), this, SLOT(hideConsole()));
+	connect(this->viewActionHideParameters, SIGNAL(triggered()), this, SLOT(hideParameters()));
 
 	// Help menu
 	connect(this->helpActionAbout, SIGNAL(triggered()), this, SLOT(helpAbout()));
@@ -570,6 +574,7 @@ MainWindow::MainWindow(const QString &filename)
 	
 	connect(this->editorDock, SIGNAL(topLevelChanged(bool)), this, SLOT(editorTopLevelChanged(bool)));
 	connect(this->consoleDock, SIGNAL(topLevelChanged(bool)), this, SLOT(consoleTopLevelChanged(bool)));
+	connect(this->parameterDock, SIGNAL(topLevelChanged(bool)), this, SLOT(parameterTopLevelChanged(bool)));
 	
 	// display this window and check for OpenGL 2.0 (OpenCSG) support
 	viewModeThrownTogether();
@@ -630,6 +635,8 @@ void MainWindow::loadViewSettings(){
 	}
 	viewActionHideConsole->setChecked(settings.value("view/hideConsole").toBool());
 	hideConsole();
+	viewActionHideParameters->setChecked(settings.value("view/hideParameters").toBool());
+	hideParameters();
 	viewActionHideEditor->setChecked(settings.value("view/hideEditor").toBool());
 	hideEditor();
 	viewActionHideToolBars->setChecked(settings.value("view/hideToolbar").toBool());
@@ -664,6 +671,7 @@ void MainWindow::updateUndockMode(bool undockMode)
 	if (undockMode) {
 		editorDock->setFeatures(editorDock->features() | QDockWidget::DockWidgetFloatable);
 		consoleDock->setFeatures(consoleDock->features() | QDockWidget::DockWidgetFloatable);
+		parameterDock->setFeatures(parameterDock->features() | QDockWidget::DockWidgetFloatable);
 	} else {
 		if (editorDock->isFloating()) {
 			editorDock->setFloating(false);
@@ -673,6 +681,10 @@ void MainWindow::updateUndockMode(bool undockMode)
 			consoleDock->setFloating(false);
 		}
 		consoleDock->setFeatures(consoleDock->features() & ~QDockWidget::DockWidgetFloatable);
+		if (parameterDock->isFloating()) {
+			parameterDock->setFloating(false);
+		}
+		parameterDock->setFeatures(parameterDock->features() & ~QDockWidget::DockWidgetFloatable);
 	}
 }
 
@@ -681,6 +693,7 @@ void MainWindow::updateReorderMode(bool reorderMode)
 	MainWindow::reorderMode = reorderMode;
 	editorDock->setTitleBarWidget(reorderMode ? 0 : editorDockTitleWidget);
 	consoleDock->setTitleBarWidget(reorderMode ? 0 : consoleDockTitleWidget);
+	parameterDock->setTitleBarWidget(reorderMode ? 0 : parameterDockTitleWidget);
 }
 
 MainWindow::~MainWindow()
@@ -798,6 +811,7 @@ void MainWindow::setFileName(const QString &filename)
 	}
 	editorTopLevelChanged(editorDock->isFloating());
 	consoleTopLevelChanged(consoleDock->isFloating());
+	parameterTopLevelChanged(parameterDock->isFloating());
 }
 
 void MainWindow::updateRecentFiles()
@@ -2438,6 +2452,11 @@ void MainWindow::on_consoleDock_visibilityChanged(bool)
 	consoleTopLevelChanged(consoleDock->isFloating());
 }
 
+void MainWindow::on_parameterDock_visibilityChanged(bool)
+{
+	consoleTopLevelChanged(consoleDock->isFloating());
+}
+
 void MainWindow::editorTopLevelChanged(bool topLevel)
 {
 	setDockWidgetTitle(editorDock, QString(_("Editor")), topLevel);
@@ -2446,6 +2465,11 @@ void MainWindow::editorTopLevelChanged(bool topLevel)
 void MainWindow::consoleTopLevelChanged(bool topLevel)
 {
 	setDockWidgetTitle(consoleDock, QString(_("Console")), topLevel);
+}
+
+void MainWindow::parameterTopLevelChanged(bool topLevel)
+{
+	setDockWidgetTitle(parameterDock, QString(_("Parameters")), topLevel);
 }
 
 void MainWindow::setDockWidgetTitle(QDockWidget *dockWidget, QString prefix, bool topLevel)
@@ -2495,6 +2519,15 @@ void MainWindow::hideConsole()
 		consoleDock->hide();
 	} else {
 		consoleDock->show();
+	}
+}
+
+void MainWindow::hideParameters()
+{
+	if (viewActionHideParameters->isChecked()) {
+		parameterDock->hide();
+	} else {
+		parameterDock->show();
 	}
 }
 

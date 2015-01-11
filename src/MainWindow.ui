@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1397</width>
+    <width>1083</width>
     <height>586</height>
    </rect>
   </property>
@@ -352,6 +352,7 @@
     <addaction name="viewActionHideToolBars"/>
     <addaction name="viewActionHideEditor"/>
     <addaction name="viewActionHideConsole"/>
+    <addaction name="viewActionHideParameters"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -520,6 +521,12 @@
      </item>
     </layout>
    </widget>
+  </widget>
+  <widget class="Dock" name="parameterDock">
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents"/>
   </widget>
   <action name="fileActionNew">
    <property name="icon">
@@ -1187,6 +1194,17 @@
    </property>
    <property name="text">
     <string>Hide toolbars</string>
+   </property>
+  </action>
+  <action name="viewActionHideParameters">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Hide parameters</string>
    </property>
   </action>
  </widget>
