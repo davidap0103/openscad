@@ -138,10 +138,10 @@ AbstractNode *ImportModule::instantiate(const Context *ctx, const ModuleInstanti
 
 	if (node->scale <= 0) node->scale = 1;
 
-	Value width = c.lookup_variable("width", true);
-	Value height = c.lookup_variable("height", true);
-	node->width = (width.type() == Value::NUMBER) ? width.toDouble() : -1;
-	node->height = (height.type() == Value::NUMBER) ? height.toDouble() : -1;
+	ValuePtr width = c.lookup_variable("width", true);
+	ValuePtr height = c.lookup_variable("height", true);
+	node->width = (width->type() == Value::NUMBER) ? width->toDouble() : -1;
+	node->height = (height->type() == Value::NUMBER) ? height->toDouble() : -1;
 	
 	return node;
 }
