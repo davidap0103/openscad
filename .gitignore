@@ -47,3 +47,4 @@ testdata/scad/misc/use-tests.scad
 src/*.org
 src/*.old
 src/*.debug
+/examples/html
