@@ -2,8 +2,9 @@ SRC=$(wildcard */*.scad)
 PNG=$(patsubst %.scad,html/%.png,$(SRC))
 HTML=$(patsubst %.scad,html/%.html,$(SRC))
 
+#OPENSCAD := ../OpenSCAD.app/Contents/MacOS/OpenSCAD
 OPENSCAD := openscad
-ARGS := --imgsize=1200,900 --camera=0,0,0,55,0,25,180 --viewall
+ARGS := --imgsize=1200,900 --camera=0,0,0,55,0,25,180 --viewall --autocenter
 
 all : $(PNG) $(HTML) example-data.js assets
 
@@ -42,7 +43,7 @@ html/%.png : %.scad
 html/%.html : %.scad template-pre.html template-post.html
 	echo $(notdir $(patsubst %.scad,%.png,$<))
 	mkdir -p `dirname $@`
-	sed -e 's/@@IMAGE@@/$(notdir $(patsubst %.scad,%.png,$<))/' template-pre.html > $@
+	sed -e 's/@@IMAGE@@/$(notdir $(patsubst %.scad,%.png,$<))/g' template-pre.html > $@
 	sed -e 's/</\&lt/; s/>/\&gt/;' $< >> $@
 	cat template-post.html >> $@
 
