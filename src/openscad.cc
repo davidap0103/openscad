@@ -600,24 +600,23 @@ void dialogThreadFunc(FontCacheInitializer *initializer)
 
 void dialogInitHandler(FontCacheInitializer *initializer, void *)
 {
-	QProgressDialog dialog;
-	dialog.setLabelText(_("Fontconfig needs to update its font cache.\nThis can take up to a couple of minutes."));
-	dialog.setMinimum(0);
-	dialog.setMaximum(0);
-	dialog.setCancelButton(0);
+	MainWindow *mainw = *MainWindow::getWindows()->begin();
 
 	QFutureWatcher<void> futureWatcher;
-	QObject::connect(&futureWatcher, SIGNAL(finished()), &dialog, SLOT(reset()));
-	QObject::connect(&dialog, SIGNAL(canceled()), &futureWatcher, SLOT(cancel()));
-	QObject::connect(&futureWatcher, SIGNAL(progressRangeChanged(int,int)), &dialog, SLOT(setRange(int,int)));
-	QObject::connect(&futureWatcher, SIGNAL(progressValueChanged(int)), &dialog, SLOT(setValue(int)));
+	QObject::connect(&futureWatcher, SIGNAL(finished()), mainw, SLOT(hideFontCacheDialog()));
 
 	QFuture<void> future = QtConcurrent::run(boost::bind(dialogThreadFunc, initializer));
 	futureWatcher.setFuture(future);
 
-	dialog.exec();
+	// We don't always get the started() signal, so we start manually
+	QMetaObject::invokeMethod(mainw, "showFontCacheDialog");
 
+	// Block, in case we're in a separate thread, or the dialog was closed by the user
 	futureWatcher.waitForFinished();
+
+	// We don't always receive the finished signal. We still need the signal to break 
+	// out of the exec() though.
+	QMetaObject::invokeMethod(mainw, "hideFontCacheDialog");
 }
 
 int gui(vector<string> &inputFiles, const fs::path &original_path, int argc, char ** argv)
@@ -643,6 +642,7 @@ int gui(vector<string> &inputFiles, const fs::path &original_path, int argc, cha
 	QCoreApplication::setApplicationVersion(TOSTRING(OPENSCAD_VERSION));
 #if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
 	QGuiApplication::setApplicationDisplayName("OpenSCAD");
+	QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
 #else
 	QTextCodec::setCodecForCStrings(QTextCodec::codecForName("UTF-8"));
 #endif
@@ -706,8 +706,15 @@ int gui(vector<string> &inputFiles, const fs::path &original_path, int argc, cha
 		LaunchingScreen *launcher = new LaunchingScreen();
 		int dialogResult = launcher->exec();
 		if (dialogResult == QDialog::Accepted) {
-			inputFiles.clear();
-			inputFiles.push_back(launcher->selectedFile().toStdString());
+			QStringList files = launcher->selectedFiles();
+			// If nothing is selected in the launching screen, leave
+			// the "" dummy in inputFiles to open an empty MainWindow.
+			if (!files.empty()) {
+				inputFiles.clear();
+				BOOST_FOREACH(const QString &f, files) {
+					inputFiles.push_back(f.toStdString());
+				}
+			}
 			delete launcher;
 		} else {
 			return 0;
