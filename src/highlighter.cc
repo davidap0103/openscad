@@ -225,7 +225,7 @@ Highlighter::Highlighter(QTextDocument *parent)
 	tokentypes["prim3d"] << "cube" << "cylinder" << "sphere" << "polyhedron";
 	tokentypes["prim2d"] << "square" << "polygon" << "circle";
 	tokentypes["import"] << "include" << "use" << "import_stl" << "import" << "import_dxf" << "dxf_dim" << "dxf_cross" << "surface";
-	tokentypes["special"] << "$children" << "child" << "children" << "$fn" << "$fa" << "$fs" << "$t" << "$vpt" << "$vpr";
+	tokentypes["special"] << "$children" << "child" << "children" << "$fn" << "$fa" << "$fs" << "$t" << "$vpt" << "$vpr" << "$vpd";
 	tokentypes["extrude"] << "linear_extrude" << "rotate_extrude";
 	tokentypes["bracket"] << "[" << "]" << "(" << ")";
 	tokentypes["curlies"] << "{" << "}";
@@ -234,9 +234,6 @@ Highlighter::Highlighter(QTextDocument *parent)
 	tokentypes["_$comment"] << "_$comment"; // bit of a kludge here
 	tokentypes["_$quote"] << "_$quote";
 	tokentypes["_$number"] << "_$number";
-
-	QString syntaxhighlight = Preferences::inst()->getValue("editor/syntaxhighlight").toString();
-	this->assignFormatsToTokens(syntaxhighlight);
 
 	errorFormat.setBackground(Qt::red);
 	errorState = false;

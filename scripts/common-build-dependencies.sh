@@ -55,6 +55,7 @@ build_libxml2()
 build_fontconfig()
 {
   version=$1
+  extra_config_flags="$2"
 
   if [ -e $DEPLOYDIR/include/fontconfig ]; then
     echo "fontconfig already installed. not building"
@@ -70,10 +71,10 @@ build_fontconfig()
   tar xzf "fontconfig-$version.tar.gz"
   cd "fontconfig-$version"
   export PKG_CONFIG_PATH="$DEPLOYDIR/lib/pkgconfig"
-  ./configure --prefix="$DEPLOYDIR" --enable-libxml2 --disable-docs
+  ./configure --prefix=/ --enable-libxml2 --disable-docs $extra_config_flags
   unset PKG_CONFIG_PATH
-  make -j$NUMCPU
-  make install
+  DESTDIR="$DEPLOYDIR" make -j$NUMCPU
+  DESTDIR="$DEPLOYDIR" make install
 }
 
 build_libffi()
@@ -160,7 +161,7 @@ build_ragel()
   cd "$BASEDIR"/src
   rm -rf "ragel-$version"
   if [ ! -f "ragel-$version.tar.gz" ]; then
-    curl --insecure -LO "http://www.complang.org/ragel/ragel-$version.tar.gz"
+    curl --insecure -LO "http://www.colm.net/files/ragel/ragel-$version.tar.gz"
   fi
   tar xzf "ragel-$version.tar.gz"
   cd "ragel-$version"

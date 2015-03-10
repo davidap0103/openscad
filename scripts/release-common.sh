@@ -202,7 +202,12 @@ case $OS in
         cd $OPENSCADDIR
     ;;
     *)
-        qmake VERSION=$VERSION OPENSCAD_COMMIT=$OPENSCAD_COMMIT CONFIG+="$CONFIG" CONFIG-=debug openscad.pro
+	QMAKE="`command -v qmake-qt5`"
+	if [ ! -x "$QMAKE" ]
+	then
+		QMAKE=qmake
+	fi
+	"$QMAKE" VERSION=$VERSION OPENSCAD_COMMIT=$OPENSCAD_COMMIT CONFIG+="$CONFIG" CONFIG-=debug openscad.pro
     ;;
 esac
 
@@ -249,8 +254,8 @@ case $OS in
             echo "cant find $TARGET/openscad.exe. build failed. stopping."
             exit
         fi
-        # make console pipe-able openscad.com - see winconsole.pri for info
-        qmake CONFIG+=winconsole ../openscad.pro
+        # make console pipe-able openscad.com - see winconsole.pro for info
+        qmake ../winconsole/winconsole.pro
         make
         if [ ! -e $TARGET/openscad.com ]; then
             echo "cant find $TARGET/openscad.com. build failed. stopping."
@@ -274,7 +279,6 @@ if [[ $? != 0 ]]; then
   echo "Error building OpenSCAD. Aborting."
   exit 1
 fi
-
 
 echo "Building test suite..."
 
@@ -321,12 +325,16 @@ case $OS in
         EXAMPLESDIR=OpenSCAD.app/Contents/Resources/examples
         LIBRARYDIR=OpenSCAD.app/Contents/Resources/libraries
         FONTDIR=OpenSCAD.app/Contents/Resources/fonts
+        TRANSLATIONDIR=OpenSCAD.app/Contents/Resources/locale
+        COLORSCHEMESDIR=OpenSCAD.app/Contents/Resources/color-schemes
     ;;
     UNIX_CROSS_WIN)
         cd $OPENSCADDIR
         EXAMPLESDIR=$DEPLOYDIR/openscad-$VERSION/examples/
         LIBRARYDIR=$DEPLOYDIR/openscad-$VERSION/libraries/
         FONTDIR=$DEPLOYDIR/openscad-$VERSION/fonts/
+        TRANSLATIONDIR=$DEPLOYDIR/openscad-$VERSION/locale/
+        COLORSCHEMESDIR=$DEPLOYDIR/openscad-$VERSION/color-schemes/
         rm -rf $DEPLOYDIR/openscad-$VERSION
         mkdir $DEPLOYDIR/openscad-$VERSION
     ;;
@@ -334,6 +342,8 @@ case $OS in
         EXAMPLESDIR=openscad-$VERSION/examples/
         LIBRARYDIR=openscad-$VERSION/libraries/
         FONTDIR=openscad-$VERSION/fonts/
+        TRANSLATIONDIR=openscad-$VERSION/locale/
+        COLORSCHEMESDIR=openscad-$VERSION/color-schemes/
         rm -rf openscad-$VERSION
         mkdir openscad-$VERSION
     ;;
@@ -351,7 +361,22 @@ fi
 if [ -n $FONTDIR ]; then
   echo $FONTDIR
   mkdir -p $FONTDIR
-  cp -a fonts/* $FONTDIR
+  cp -a fonts/10-liberation.conf $FONTDIR
+  cp -a fonts/Liberation-2.00.1 $FONTDIR
+  case $OS in
+    MACOSX) 
+      cp -a fonts/05-osx-fonts.conf $FONTDIR
+      cp -a fonts-osx/* $FONTDIR
+      ;;
+    UNIX_CROSS_WIN)
+      cp -a "$DEPLOYDIR"/mingw-cross-env/etc/fonts/. "$FONTDIR"
+      ;;
+  esac
+fi
+if [ -n $COLORSCHEMESDIR ]; then
+  echo $COLORSCHEMESDIR
+  mkdir -p $COLORSCHEMESDIR
+  cp -a color-schemes/* $COLORSCHEMESDIR
 fi
 if [ -n $LIBRARYDIR ]; then
     echo $LIBRARYDIR
@@ -364,6 +389,13 @@ if [ -n $LIBRARYDIR ]; then
     cd $LIBRARYDIR/.. && tar xf $OPENSCADDIR/libraries.tar && cd $OPENSCADDIR
     rm -f libraries.tar
     chmod -R u=rwx,go=r,+X $LIBRARYDIR/*
+fi
+if [ -n $TRANSLATIONDIR ]; then
+  echo $TRANSLATIONDIR
+  mkdir -p $TRANSLATIONDIR
+  cd locale && tar cvf $OPENSCADDIR/translations.tar */*/*.mo && cd $OPENSCADDIR
+  cd $TRANSLATIONDIR && tar xvf $OPENSCADDIR/translations.tar && cd $OPENSCADDIR
+  rm -f translations.tar
 fi
 
 echo "Creating archive.."
@@ -442,12 +474,26 @@ case $OS in
               gcc -o chrpath_linux -DSIZEOF_VOID_P=4 scripts/chrpath_linux.c
         fi
         ./chrpath_linux -d openscad-$VERSION/lib/openscad/openscad
-        ldd openscad | sed -re 's,.* => ,,; s,[\t ].*,,;' -e '/Qt|boost/ { p; d; };' \
-            -e '/lib(icu.*|stdc.*|audio|CGAL|GLEW|opencsg|png|gmp|gmpxx|mpfr)\.so/ { p; d; };' \
-            -e 'd;' | xargs cp -vt openscad-$VERSION/lib/openscad/
+
+	QTLIBDIR=$(dirname $(ldd openscad | grep Qt5Gui | head -n 1 | awk '{print $3;}'))
+	( ldd openscad ; ldd "$QTLIBDIR"/qt5/plugins/platforms/libqxcb.so ) \
+		| sed -re 's,.* => ,,; s,[\t ].*,,;' -e '/^$/d' -e '/libc\.so|libm\.so|libdl\.so|libgcc_|libpthread\.so/d' \
+		| sort -u \
+		| xargs cp -vt "openscad-$VERSION/lib/openscad/"
+	PLATFORMDIR="openscad-$VERSION/lib/openscad/platforms/"
+	mkdir -p "$PLATFORMDIR"
+	cp -av "$QTLIBDIR"/qt5/plugins/platforms/libqxcb.so "$PLATFORMDIR"
+	DRIDRIVERDIR=$(find /usr/lib -xdev -type d -name dri)
+	if [ -d "$DRIDRIVERDIR" ]
+	then
+		DRILIB="openscad-$VERSION/lib/openscad/dri/"
+		mkdir -p "$DRILIB"
+		cp -av "$DRIDRIVERDIR"/swrast_dri.so "$DRILIB"
+	fi
+
         strip openscad-$VERSION/lib/openscad/*
         mkdir -p openscad-$VERSION/share/appdata
-        cp openscad.appdata.xml openscad-$VERSION/share/appdata
+	cp icons/openscad.{desktop,png,xml} openscad-$VERSION/share/appdata
         cp scripts/installer-linux.sh openscad-$VERSION/install.sh
         chmod 755 -R openscad-$VERSION/
         PACKAGEFILE=openscad-$VERSION.x86-$ARCH.tar.gz

@@ -133,15 +133,41 @@ void export_stl(const PolySet &ps, std::ostream &output)
 
 	setlocale(LC_NUMERIC, "C"); // Ensure radix is . (not ,) in output
 	output << "solid OpenSCAD_Model\n";
-	BOOST_FOREACH(const PolySet::Polygon &p, triangulated.polygons) {
-		output << "  facet normal 0 0 0\n";
-		output << "    outer loop\n";
+	BOOST_FOREACH(const Polygon &p, triangulated.polygons) {
 		assert(p.size() == 3); // STL only allows triangles
-		BOOST_FOREACH(const Vector3d &v, p) {
-			output << "vertex " << v[0] << " " << v[1] << " " << v[2] << "\n";
+		std::stringstream stream;
+		stream << p[0][0] << " " << p[0][1] << " " << p[0][2];
+		std::string vs1 = stream.str();
+		stream.str("");
+		stream << p[1][0] << " " << p[1][1] << " " << p[1][2];
+		std::string vs2 = stream.str();
+		stream.str("");
+		stream << p[2][0] << " " << p[2][1] << " " << p[2][2];
+		std::string vs3 = stream.str();
+		if (vs1 != vs2 && vs1 != vs3 && vs2 != vs3) {
+			// The above condition ensures that there are 3 distinct vertices, but
+			// they may be collinear. If they are, the unit normal is meaningless
+			// so the default value of "1 0 0" can be used. If the vertices are not
+			// collinear then the unit normal must be calculated from the
+			// components.
+			output << "  facet normal ";
+
+			Vector3d normal = (p[1] - p[0]).cross(p[2] - p[0]);
+			normal.normalize();
+			if (is_finite(normal) && !is_nan(normal)) {
+				output << normal[0] << " " << normal[1] << " " << normal[2] << "\n";
+			}
+			else {
+				output << "0 0 0\n";
+			}
+			output << "    outer loop\n";
+		
+			BOOST_FOREACH(const Vector3d &v, p) {
+				output << "      vertex " << v[0] << " " << v[1] << " " << v[2] << "\n";
+			}
+			output << "    endloop\n";
+			output << "  endfacet\n";
 		}
-		output << "    endloop\n";
-		output << "  endfacet\n";
 	}
 	output << "endsolid OpenSCAD_Model\n";
 	setlocale(LC_NUMERIC, "");      // Set default locale
@@ -227,13 +253,13 @@ static void export_stl(const CGAL_Polyhedron &P, std::ostream &output)
 void export_stl(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 {
 	if (!root_N->p3->is_simple()) {
-		PRINT("Object isn't a valid 2-manifold! Modify your design.\n");
+		PRINT("WARNING: Exported object may not be a valid 2-manifold and may need repair");
 	}
 
-	bool usePolySet = false;
+	bool usePolySet = true;
 	if (usePolySet) {
 		PolySet ps(3);
-		bool err = createPolySetFromNefPolyhedron3(*(root_N->p3), ps);
+		bool err = CGALUtils::createPolySetFromNefPolyhedron3(*(root_N->p3), ps);
 		if (err) { PRINT("ERROR: Nef->PolySet failed"); }
 		else {
 			export_stl(ps, output);
@@ -252,10 +278,10 @@ void export_stl(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 			export_stl(P, output);
 		}
 		catch (const CGAL::Assertion_exception &e) {
-			PRINTB("CGAL error in CGAL_Nef_polyhedron3::convert_to_Polyhedron(): %s", e.what());
+			PRINTB("ERROR: CGAL error in CGAL_Nef_polyhedron3::convert_to_Polyhedron(): %s", e.what());
 		}
 		catch (...) {
-			PRINT("CGAL unknown error in CGAL_Nef_polyhedron3::convert_to_Polyhedron()");
+			PRINT("ERROR: CGAL unknown error in CGAL_Nef_polyhedron3::convert_to_Polyhedron()");
 		}
 		CGAL::set_error_behaviour(old_behaviour);
 	}
@@ -264,7 +290,7 @@ void export_stl(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 void export_off(const class PolySet &ps, std::ostream &output)
 {
 	// FIXME: Implement this without creating a Nef polyhedron
-	CGAL_Nef_polyhedron *N = createNefPolyhedronFromGeometry(ps);
+	CGAL_Nef_polyhedron *N = CGALUtils::createNefPolyhedronFromGeometry(ps);
 	export_off(N, output);
 	delete N;
 }
@@ -272,17 +298,22 @@ void export_off(const class PolySet &ps, std::ostream &output)
 void export_off(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 {
 	if (!root_N->p3->is_simple()) {
-		PRINT("Object isn't a valid 2-manifold! Modify your design.");
+		PRINT("WARNING: Export failed, the object isn't a valid 2-manifold.");
 		return;
 	}
 	CGAL::Failure_behaviour old_behaviour = CGAL::set_error_behaviour(CGAL::THROW_EXCEPTION);
 	try {
 		CGAL_Polyhedron P;
-		root_N->p3->convert_to_Polyhedron(P);
+		//root_N->p3->convert_to_Polyhedron(P);
+		bool err = nefworkaround::convert_to_Polyhedron<CGAL_Kernel3>(*(root_N->p3), P);
+		if (err) {
+			PRINT("ERROR: CGAL NefPolyhedron->Polyhedron conversion failed");
+			return;
+		}
 		output << P;
 	}
 	catch (const CGAL::Assertion_exception &e) {
-		PRINTB("CGAL error in CGAL_Nef_polyhedron3::convert_to_Polyhedron(): %s", e.what());
+		PRINTB("ERROR: CGAL error in CGAL_Nef_polyhedron3::convert_to_Polyhedron(): %s", e.what());
 	}
 	CGAL::set_error_behaviour(old_behaviour);
 }
@@ -290,7 +321,7 @@ void export_off(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 void export_amf(const class PolySet &ps, std::ostream &output)
 {
 	// FIXME: Implement this without creating a Nef polyhedron
-	CGAL_Nef_polyhedron *N = createNefPolyhedronFromGeometry(ps);
+	CGAL_Nef_polyhedron *N = CGALUtils::createNefPolyhedronFromGeometry(ps);
 	export_amf(N, output);
 	delete N;
 }
@@ -302,13 +333,18 @@ void export_amf(const class PolySet &ps, std::ostream &output)
 void export_amf(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 {
 	if (!root_N->p3->is_simple()) {
-		PRINT("Object isn't a valid 2-manifold! Modify your design.");
+		PRINT("WARNING: Export failed, the object isn't a valid 2-manifold.");
 		return;
 	}
 	CGAL::Failure_behaviour old_behaviour = CGAL::set_error_behaviour(CGAL::THROW_EXCEPTION);
 	try {
 		CGAL_Polyhedron P;
-		root_N->p3->convert_to_Polyhedron(P);
+		//root_N->p3->convert_to_Polyhedron(P);
+		bool err = nefworkaround::convert_to_Polyhedron<CGAL_Kernel3>(*(root_N->p3), P);
+		if (err) {
+			PRINT("ERROR: CGAL NefPolyhedron->Polyhedron conversion failed");
+			return;
+		}
 
 		typedef CGAL_Polyhedron::Vertex Vertex;
 		typedef CGAL_Polyhedron::Vertex_const_iterator VCI;
@@ -408,7 +444,7 @@ void export_amf(const CGAL_Nef_polyhedron *root_N, std::ostream &output)
 			<< " </object>\r\n"
 			<< "</amf>\r\n";
 	} catch (CGAL::Assertion_exception e) {
-		PRINTB("CGAL error in CGAL_Nef_polyhedron3::convert_to_Polyhedron(): %s", e.what());
+		PRINTB("ERROR: CGAL error in CGAL_Nef_polyhedron3::convert_to_Polyhedron(): %s", e.what());
 	}
 	CGAL::set_error_behaviour(old_behaviour);
 	setlocale(LC_NUMERIC, ""); // Set default locale
@@ -449,10 +485,10 @@ void export_dxf(const Polygon2d &poly, std::ostream &output)
 						 << "0\n"
 						 << " 10\n"
 						 << x1 << "\n"
-						 << " 11\n"
-						 << x2 << "\n"
 						 << " 20\n"
 						 << y1 << "\n"
+						 << " 11\n"
+						 << x2 << "\n"
 						 << " 21\n"
 						 << y2 << "\n";
 		}
@@ -486,11 +522,15 @@ void export_svg(const Polygon2d &poly, std::ostream &output)
 	int miny = floor(-bbox.max().y());
 	int maxx = ceil(bbox.max().x());
 	int maxy = ceil(-bbox.min().y());
-	
+
+	int width = maxx - minx;
+	int height = maxy - miny;
 	output
 		<< "<?xml version=\"1.0\" standalone=\"no\"?>\n"
 		<< "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n"
-		<< "<svg width=\"" << (maxx - minx) << "\" height=\"" << (maxy - miny) << "\" viewBox=\"" << (minx - 1) << " " << (miny - 1) << " " << (maxx - minx + 2) << " " << (maxy - miny + 2) << "\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">\n"
+		<< "<svg width=\"" << width << "\" height=\"" << height
+		<< "\" viewBox=\"" << minx << " " << miny << " " << width << " " << height
+		<< "\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">\n"
 		<< "<title>OpenSCAD Model</title>\n";
 
 	output << "<path d=\"\n";

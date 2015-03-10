@@ -253,9 +253,10 @@ PolySet * AmfImporter::read(const std::string filename)
 		for (std::vector<PolySet *>::iterator it = polySets.begin();it != polySets.end();it++) {
 			children.push_back(std::make_pair((const AbstractNode*)NULL,  shared_ptr<const Geometry>(*it)));
 		}
-		CGAL_Nef_polyhedron N;
-		CGALUtils::applyOperator(children, N, OPENSCAD_UNION);
-		p = N.convertToPolyset();
+		CGAL_Nef_polyhedron *N = CGALUtils::applyOperator(children, OPENSCAD_UNION);
+		p = new PolySet(3);
+		CGALUtils::createPolySetFromNefPolyhedron3(*N->p3, *p);
+		delete N;
 	}
 #else
 	p = new PolySet(3);

@@ -27,6 +27,7 @@
 #include "ThrownTogetherRenderer.h"
 #include "polyset.h"
 #include "csgterm.h"
+#include "printutils.h"
 
 #include "system-gl.h"
 
@@ -43,6 +44,7 @@ ThrownTogetherRenderer::ThrownTogetherRenderer(CSGChain *root_chain,
 
 void ThrownTogetherRenderer::draw(bool /*showfaces*/, bool showedges) const
 {
+	PRINTD("Thrown draw");
 	if (this->root_chain) {
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
@@ -62,6 +64,7 @@ void ThrownTogetherRenderer::renderCSGChain(CSGChain *chain, bool highlight,
 																						bool background, bool showedges, 
 																						bool fberror) const
 {
+	PRINTD("Thrown renderCSGChain");
 	glDepthFunc(GL_LEQUAL);
 	boost::unordered_map<std::pair<const Geometry*,const Transform3d*>,int> geomVisitMark;
 	BOOST_FOREACH(const CSGChainObject &obj, chain->objects) {
@@ -71,12 +74,15 @@ void ThrownTogetherRenderer::renderCSGChain(CSGChain *chain, bool highlight,
 		const Color4f &c = obj.color;
 		glPushMatrix();
 		glMultMatrixd(m.data());
-		csgmode_e csgmode  = obj.type == CSGTerm::TYPE_DIFFERENCE ? CSGMODE_DIFFERENCE : CSGMODE_NORMAL;
+		csgmode_e csgmode = csgmode_e(
+			(highlight ? 
+			 CSGMODE_HIGHLIGHT :
+			 (background ? CSGMODE_BACKGROUND : CSGMODE_NORMAL)) |
+			(obj.type == CSGTerm::TYPE_DIFFERENCE ? CSGMODE_DIFFERENCE : 0));
 		ColorMode colormode = COLORMODE_NONE;
 		ColorMode edge_colormode = COLORMODE_NONE;
 
 		if (highlight) {
-			csgmode = csgmode_e(csgmode + 20);
 			colormode = COLORMODE_HIGHLIGHT;
 			edge_colormode = COLORMODE_HIGHLIGHT_EDGES;
 		} else if (background) {
@@ -86,16 +92,11 @@ void ThrownTogetherRenderer::renderCSGChain(CSGChain *chain, bool highlight,
 			else {
 				colormode = COLORMODE_BACKGROUND;
 			}
-			csgmode = csgmode_e(csgmode + 10);
 			edge_colormode = COLORMODE_BACKGROUND_EDGES;
 		} else if (fberror) {
-			if (highlight) csgmode = csgmode_e(csgmode + 20);
-			else if (background) csgmode = csgmode_e(csgmode + 10);
-			else csgmode = csgmode_e(csgmode);
 		} else if (obj.type == CSGTerm::TYPE_DIFFERENCE) {
 			if (obj.flag & CSGTerm::FLAG_HIGHLIGHT) {
 				colormode = COLORMODE_HIGHLIGHT;
-				csgmode = csgmode_e(csgmode + 20);
 			}
 			else {
 				colormode = COLORMODE_CUTOUT;
@@ -104,7 +105,6 @@ void ThrownTogetherRenderer::renderCSGChain(CSGChain *chain, bool highlight,
 		} else {
 			if (obj.flag & CSGTerm::FLAG_HIGHLIGHT) {
 				colormode = COLORMODE_HIGHLIGHT;
-				csgmode = csgmode_e(csgmode + 20);
 			}
 			else {
 				colormode = COLORMODE_MATERIAL;
@@ -122,4 +122,11 @@ void ThrownTogetherRenderer::renderCSGChain(CSGChain *chain, bool highlight,
 
 		glPopMatrix();
 	}
+}
+
+BoundingBox ThrownTogetherRenderer::getBoundingBox() const
+{
+	BoundingBox bbox;
+	if (this->root_chain) bbox = this->root_chain->getBoundingBox();
+	return bbox;
 }

@@ -17,6 +17,7 @@ class QGLView : public QGLWidget, public GLView
 	Q_PROPERTY(bool showAxes READ showAxes WRITE setShowAxes);
 	Q_PROPERTY(bool showCrosshairs READ showCrosshairs WRITE setShowCrosshairs);
 	Q_PROPERTY(bool orthoMode READ orthoMode WRITE setOrthoMode);
+	Q_PROPERTY(double showScaleProportional READ showScaleProportional WRITE setShowScaleProportional);
 
 public:
 	QGLView(QWidget *parent = NULL);
@@ -34,16 +35,16 @@ public:
 	bool showCrosshairs() const { return this->showcrosshairs; }
 	void setShowCrosshairs(bool enabled) { this->showcrosshairs = enabled; }
 	bool orthoMode() const { return (this->cam.projection == Camera::ORTHOGONAL); }
-	void setOrthoMode(bool enabled) {
-		if (enabled) this->cam.projection = Camera::ORTHOGONAL;
-		else this->cam.projection = Camera::PERSPECTIVE;
-	}
+	void setOrthoMode(bool enabled);
+	bool showScaleProportional() const { return this->showscale; }
+	void setShowScaleProportional(bool enabled) { this->showscale = enabled; }
 	std::string getRendererInfo() const;
 #if QT_VERSION >= 0x050100
 	float getDPI() { return this->devicePixelRatio(); }
 #endif
 	bool save(const char *filename);
 	void resetView();
+	void viewAll();
 
 public slots:
 	void ZoomIn(void);
@@ -62,6 +63,7 @@ private:
 	void mousePressEvent(QMouseEvent *event);
 	void mouseMoveEvent(QMouseEvent *event);
 	void mouseReleaseEvent(QMouseEvent *event);
+	void mouseDoubleClickEvent(QMouseEvent *event);
 
 	void initializeGL();
 	void resizeGL(int w, int h);

@@ -1,6 +1,8 @@
 #!/bin/sh
-# NB! To build a release build, the VERSION and VERSIONDATE environment variables needs to be set.
-# See doc/release-checklist.txt
+#
+# Usage:
+#   ./scripts/publish-macosx.sh [buildonly]
+#
 
 export NUMCPU=$(sysctl -n hw.ncpu)
 
@@ -40,6 +42,13 @@ update_www_download_links()
     fi
 }
 
+# Cmd-line parameters
+DOUPLOAD=1
+if [ "`echo $* | grep buildonly`" ]; then
+  echo "Build only, no upload"
+  DOUPLOAD=
+fi
+
 if test -z "$VERSIONDATE"; then
   VERSIONDATE=`date "+%Y.%m.%d"`
 fi
@@ -76,6 +85,10 @@ if [[ $? != 0 ]]; then
   exit 1
 fi
 
+if [ ! $DOUPLOAD ]; then
+  exit 0
+fi
+
 SIGNATURE=$(openssl dgst -sha1 -binary < OpenSCAD-$VERSION.dmg  | openssl dgst -dss1 -sign $HOME/.ssh/openscad-appcast.pem | openssl enc -base64)
 
 if [[ $VERSION == $VERSIONDATE ]]; then
@@ -92,9 +105,23 @@ if [[ $VERSION == $VERSIONDATE ]]; then
 fi
 
 echo "Uploading..."
-scp OpenSCAD-$VERSION.dmg openscad@files.openscad.org:www/snapshots
+if [[ $VERSION == $VERSIONDATE ]]; then
+  scp OpenSCAD-$VERSION.dmg openscad@files.openscad.org:www/snapshots
+else
+  scp OpenSCAD-$VERSION.dmg openscad@files.openscad.org:www
+fi
 if [[ $? != 0 ]]; then
   exit 1
+fi
+scp $APPCASTFILE openscad@files.openscad.org:www/
+if [[ $? != 0 ]]; then
+  exit 1
+fi
+if [[ $VERSION == $VERSIONDATE ]]; then
+  scp $APPCASTFILE openscad@files.openscad.org:www/appcast-snapshots.xml
+  if [[ $? != 0 ]]; then
+    exit 1
+  fi
 fi
 
 # Update snapshot filename on web page

@@ -33,6 +33,7 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_TRUETYPE_IDS_H
 
 #include <vector>
 #include <string>
@@ -43,12 +44,12 @@
 
 class FontInfo {
 public:
-    FontInfo(std::string family, std::string style, std::string file);
+    FontInfo(const std::string &family, const std::string &style, const std::string &file);
     virtual ~FontInfo();
     
-    std::string get_family() const;
-    std::string get_style() const;
-    std::string get_file() const;
+    const std::string &get_family() const;
+    const std::string &get_style() const;
+    const std::string &get_file() const;
     bool operator<(const FontInfo &rhs) const;
 private:
     std::string family;
@@ -58,40 +59,62 @@ private:
 
 typedef std::vector<FontInfo> FontInfoList;
 
+/**
+ * Slow call of the font cache initialization. This is separated here so it
+ * can be passed to the GUI to run in a separate thread while showing a
+ * progress dialog.
+ */
+class FontCacheInitializer {
+public:
+    FontCacheInitializer(FcConfig *config) : config(config) { }
+    void run() { FcConfigBuildFonts(config); }
+private:
+    FcConfig *config;
+};
+
 class FontCache {
 public:
+    const static std::string DEFAULT_FONT;
     const static unsigned int MAX_NR_OF_CACHE_ENTRIES = 3;
     
     FontCache();
     virtual ~FontCache();
 
-    bool is_init_ok();
-    FT_Face get_font(std::string font);
-    void register_font_file(std::string path);
+    bool is_init_ok() const;
+    FT_Face get_font(const std::string &font);
+    bool is_windows_symbol_font(const FT_Face &face) const;
+    void register_font_file(const std::string &path);
     void clear();
-    FontInfoList * list_fonts();
+    FontInfoList *list_fonts() const;
     
-    static FontCache * instance();
+    static FontCache *instance();
+
+    typedef void (InitHandlerFunc)(FontCacheInitializer *initializer, void *userdata);
+    static void registerProgressHandler(InitHandlerFunc *handler, void *userdata = NULL);
+
 private:
     typedef std::pair<FT_Face, time_t> cache_entry_t;
     typedef std::map<std::string, cache_entry_t> cache_t;
 
     static FontCache *self;
-    
+    static InitHandlerFunc *cb_handler;
+    static void *cb_userdata;
+
+    static void defaultInitHandler(FontCacheInitializer *delegate, void *userdata);
+
     bool init_ok;
     cache_t cache;
     FcConfig *config;
     FT_Library library;
 
     void check_cleanup();
-    void dump_cache(std::string info);
+    void dump_cache(const std::string &info);
     
-    void add_font_dir(std::string path);
-    void init_pattern(FcPattern *pattern);
+    void add_font_dir(const std::string &path);
+    void init_pattern(FcPattern *pattern) const;
     
-    FT_Face find_face(std::string font);
-    FT_Face find_face_fontconfig(std::string font);
-    FT_Face find_face_in_path_list(std::string font);
-    FT_Face find_face_in_path(std::string path, std::string font);
+    FT_Face find_face(const std::string &font) const;
+    FT_Face find_face_fontconfig(const std::string &font) const;
+    bool try_charmap(FT_Face face, int platform_id, int encoding_id) const;
 };
 

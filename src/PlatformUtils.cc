@@ -1,14 +1,95 @@
-#include <glib.h>
+#include <stdlib.h>
+#include <iomanip>
 
 #include "PlatformUtils.h"
-#include "boosty.h"
-#include <Eigen/Core>
+
+#ifdef INSTALL_SUFFIX
+#define RESOURCE_FOLDER(path) path INSTALL_SUFFIX
+#else
+#define RESOURCE_FOLDER(path) path
+#endif
 
 extern std::vector<std::string> librarypath;
+extern std::vector<std::string> fontpath;
 
-bool PlatformUtils::createLibraryPath()
+namespace {
+	bool path_initialized = false;
+	std::string applicationpath;
+	std::string resourcespath;
+}
+
+const char *PlatformUtils::OPENSCAD_FOLDER_NAME = "OpenSCAD";
+
+static std::string lookupResourcesPath()
 {
-	std::string path = PlatformUtils::libraryPath();
+	fs::path resourcedir(applicationpath);
+	PRINTDB("Looking up resource folder with application path '%s'", resourcedir.c_str());
+	
+#ifdef __APPLE__
+	const char *searchpath[] = {
+	    "../Resources", 	// Resources can be bundled on Mac.
+	    "../../..",       // Dev location
+	    "..",          // Test location
+	    NULL
+	};
+#else
+#ifdef WIN32
+    const char *searchpath[] = {
+        ".", // Release location
+        RESOURCE_FOLDER("../share/openscad"), // MSYS2 location
+        "..", // Dev location
+        NULL
+    };
+#else
+    const char *searchpath[] = {
+	    RESOURCE_FOLDER("../share/openscad"),
+	    RESOURCE_FOLDER("../../share/openscad"),
+	    ".",
+	    "..",
+	    "../..",
+	    NULL
+	};
+#endif	
+#endif
+
+	fs::path tmpdir;
+	for (int a = 0;searchpath[a] != NULL;a++) {
+	    tmpdir = resourcedir / searchpath[a];
+	    
+	    const fs::path checkdir = tmpdir / "libraries";
+	    PRINTDB("Checking '%s'", checkdir.c_str());
+
+	    if (is_directory(checkdir)) {
+		resourcedir = tmpdir;
+		PRINTDB("Found resource folder '%s'", tmpdir.c_str());
+		break;
+	    }
+	}
+
+	// resourcedir defaults to applicationPath
+	std::string result = boosty::stringy(boosty::canonical(resourcedir));
+	PRINTDB("Using resource folder '%s'", result);
+	return result;
+}
+
+void PlatformUtils::registerApplicationPath(const std::string &apppath)
+{
+	applicationpath = apppath;
+	resourcespath = lookupResourcesPath();
+	path_initialized = true;
+}
+
+std::string PlatformUtils::applicationPath()
+{
+	if (!path_initialized) {
+	    throw std::runtime_error("PlatformUtils::applicationPath(): application path not initialized!");
+	}
+	return applicationpath;
+}
+
+bool PlatformUtils::createUserLibraryPath()
+{
+	std::string path = PlatformUtils::userLibraryPath();
 	bool OK = false;
 	try {
 		if (!fs::exists(fs::path(path))) {
@@ -24,7 +105,7 @@ bool PlatformUtils::createLibraryPath()
 	return OK;
 }
 
-std::string PlatformUtils::libraryPath()
+std::string PlatformUtils::userLibraryPath()
 {
 	fs::path path;
 	try {
@@ -34,7 +115,7 @@ std::string PlatformUtils::libraryPath()
 		//PRINTB("path size %i",boosty::stringy(path).size());
 		//PRINTB("lib path found: [%s]", path );
 		if (path.empty()) return "";
-		path /= "OpenSCAD";
+		path /= OPENSCAD_FOLDER_NAME;
 		path /= "libraries";
 		//PRINTB("Appended path %s", path );
 		//PRINTB("Exists: %i", fs::exists(path) );
@@ -53,7 +134,7 @@ std::string PlatformUtils::backupPath()
 		if (pathstr=="") return "";
 		path = boosty::canonical(fs::path( pathstr ));
 		if (path.empty()) return "";
-		path /= "OpenSCAD";
+		path /= OPENSCAD_FOLDER_NAME;
 		path /= "backups";
 	} catch (const fs::filesystem_error& ex) {
 		PRINTB("ERROR: %s",ex.what());
@@ -78,97 +159,64 @@ bool PlatformUtils::createBackupPath()
 	return OK;
 }
 
-#include "version_check.h"
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
-
-#ifdef ENABLE_CGAL
-#include "cgal.h"
-#include <boost/algorithm/string.hpp>
-#if defined(__GNUG__)
-#define GCC_INT_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 )
-#if GCC_INT_VERSION > 40600 || defined(__clang__)
-#include <cxxabi.h>
-#define __openscad_info_demangle__ 1
-#endif // GCC_INT_VERSION
-#endif // GNUG
-#endif // ENABLE_CGAL
-
-#ifdef ENABLE_LIBZIP
-#include <zip.h>
-#else
-#define LIBZIP_VERSION "<not enabled>"
-#endif
-
-std::string PlatformUtils::info()
+// This is the built-in read-only resources path
+std::string PlatformUtils::resourceBasePath()
 {
-	std::stringstream s;
+	if (!path_initialized) {
+	    throw std::runtime_error("PlatformUtils::resourcesPath(): application path not initialized!");
+	}
+	return resourcespath;
+}
 
-#if defined(__GNUG__) && !defined(__clang__)
-	std::string compiler_info( "GCC " + std::string(TOSTRING(__VERSION__)) );
-#elif defined(_MSC_VER)
-	std::string compiler_info( "MSVC " + std::string(TOSTRING(_MSC_FULL_VER)) );
-#elif defined(__clang__)
-	std::string compiler_info( "Clang " + std::string(TOSTRING(__clang_version__)) );
-#else
-	std::string compiler_info( "unknown compiler" );
-#endif
-
-#if defined( __MINGW64__ )
-	std::string mingwstatus("MingW64");
-#elif defined( __MINGW32__ )
-	std::string mingwstatus("MingW32");
-#else
-	std::string mingwstatus("No");
-#endif
-
-#ifndef OPENCSG_VERSION_STRING
-#define OPENCSG_VERSION_STRING "unknown, <1.3.2"
-#endif
-
-#ifdef QT_VERSION
-	std::string qtVersion = qVersion();
-#else
-	std::string qtVersion = "Qt disabled - Commandline Test Version";
-#endif
-
-#ifdef ENABLE_CGAL
-	std::string cgal_3d_kernel = typeid(CGAL_Kernel3).name();
-	std::string cgal_2d_kernel = typeid(CGAL_Kernel2).name();
-	std::string cgal_2d_kernelEx = typeid(CGAL_ExactKernel2).name();
-#if defined(__openscad_info_demangle__)
-	int status;
-	cgal_3d_kernel = std::string( abi::__cxa_demangle( cgal_3d_kernel.c_str(), 0, 0, &status ) );
-	cgal_2d_kernel = std::string( abi::__cxa_demangle( cgal_2d_kernel.c_str(), 0, 0, &status ) );
-	cgal_2d_kernelEx = std::string( abi::__cxa_demangle( cgal_2d_kernelEx.c_str(), 0, 0, &status ) );
-#endif // demangle
-	boost::replace_all( cgal_3d_kernel, "CGAL::", "" );
-	boost::replace_all( cgal_2d_kernel, "CGAL::", "" );
-	boost::replace_all( cgal_2d_kernelEx, "CGAL::", "" );
-#else // ENABLE_CGAL
-	std::string cgal_3d_kernel = "";
-	std::string cgal_2d_kernel = "";
-	std::string cgal_2d_kernelEx = "";
-#endif // ENABLE_CGAL
-
-	const char *env_path = getenv("OPENSCADPATH");
-	
-	s << "OpenSCAD Version: " << TOSTRING(OPENSCAD_VERSION)
-          << "\nCompiler, build date: " << compiler_info << ", " << __DATE__
-	  << "\nBoost version: " << BOOST_LIB_VERSION
-	  << "\nEigen version: " << EIGEN_WORLD_VERSION << "." << EIGEN_MAJOR_VERSION << "." << EIGEN_MINOR_VERSION
-	  << "\nCGAL version, kernels: " << TOSTRING(CGAL_VERSION) << ", " << cgal_3d_kernel << ", " << cgal_2d_kernel << ", " << cgal_2d_kernelEx
-	  << "\nOpenCSG version: " << OPENCSG_VERSION_STRING
-	  << "\nQt version: " << qtVersion
-	  << "\nMingW build: " << mingwstatus
-	  << "\nGLib version: "       << GLIB_MAJOR_VERSION << "." << GLIB_MINOR_VERSION << "." << GLIB_MICRO_VERSION
-	  << "\nlibzip version: " << LIBZIP_VERSION
-	  << "\nOPENSCADPATH: " << (env_path == NULL ? "<not set>" : env_path)
-	  << "\nOpenSCAD library path:\n";
-
-	for (std::vector<std::string>::iterator it = librarypath.begin();it != librarypath.end();it++) {
-		s << "  " << *it << "\n";
+fs::path PlatformUtils::resourcePath(const std::string &resource)
+{
+	fs::path base(resourceBasePath());
+	if (!fs::is_directory(base)) {
+		return fs::path();
 	}
 	
-	return s.str();
+	fs::path resource_dir = base / resource;
+	if (!fs::is_directory(resource_dir)) {
+		return fs::path();
+	}
+	
+	return resource_dir;
+}
+
+int PlatformUtils::setenv(const char *name, const char *value, int overwrite)
+{
+#if defined(WIN32)
+    const char *ptr = getenv(name);
+    if ((overwrite == 0) && (ptr != NULL)) {
+	return 0;
+    }
+
+    char buf[4096];
+    snprintf(buf, sizeof(buf), "%s=%s", name, value);
+    return _putenv(buf);
+#else
+    return ::setenv(name, value, overwrite);
+#endif
+}
+
+std::string PlatformUtils::toMemorySizeString(uint64_t bytes, int digits)
+{
+	static const char *units[] = { "B", "kB", "MB", "GB", "TB", NULL };
+	
+	int idx = 0;
+	double val = bytes;
+	while (true) {
+		if (val < 1024.0) {
+			break;
+		}
+		if (units[idx + 1] == NULL) {
+			break;
+		}
+		idx++;
+		val /= 1024.0;
+	}
+	
+	boost::format fmt("%f %s");
+	fmt % boost::io::group(std::setprecision(digits), val) % units[idx];
+	return fmt.str();
 }
